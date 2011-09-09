@@ -26,64 +26,59 @@ twopie = 2*pi*exp(1);
 
 # return stochastic complexity of sequence r with side information v
 evalSC <- function(v, r) {
-   n <- nrow(r);           # number of features
-   totCL <- 0;             # total code-length over all features
-   for (i in 1:ncol(r)) 
-   {
-	# extract regressors depending on the input size
-        if (ncol(v) == ncol(r))
-	{
+    n <- nrow(r);           # number of features
+    totCL <- 0;             # total code-length over all features
+    for (i in 1:ncol(r)) {
+	    # extract regressors depending on the input size
+        if (ncol(v) == ncol(r)) {
 	        Aplus <- qr(cbind(matrix(1,n,1), v[, i]));
-		k = 3;
-	}
-        if (ncol(v) == 2 * ncol(r))
-	{
-		Aplus <- qr(cbind(matrix(1,n,1), v[, i], v[, ncol(r)+i]));
-		k = 4;
-	}
-	if (ncol(v) == 3 * ncol(r))
-	{
-		# this one used in the paper
-	     	Aplus <- qr(cbind(matrix(1,n,1), v[, i], v[, ncol(r)+i], 
+		    k = 3;
+        }
+        if (ncol(v) == 2 * ncol(r)) {
+		    Aplus <- qr(cbind(matrix(1,n,1), v[, i], v[, ncol(r)+i]));
+		    k = 4;
+        }
+	    if (ncol(v) == 3 * ncol(r)) {
+	        Aplus <- qr(cbind(matrix(1,n,1), v[, i], v[, ncol(r)+i], 
 		      	 		         v[, 2*ncol(r)+i]));
-		k = 5;
-	}
-	if (ncol(v) == 4 * ncol(r))
-	{
+		    k = 5;
+	    }
+	    if (ncol(v) == 4 * ncol(r))
+	    {
 	     	Aplus <- qr(cbind(matrix(1,n,1), v[, i], v[, ncol(r)+i], 
 		      	 		         v[, 2*ncol(r)+i],
 		      	 		         v[, 3*ncol(r)+i]));
-		k = 6;
-	}
+		    k = 6;
+	    }
 
-   	b <- qr.coef(Aplus, r[,i]);      # least squares fit
-   	res <- qr.resid(Aplus, r[, i]);  # residuals
+   	    b <- qr.coef(Aplus, r[,i]);      # least squares fit
+   	    res <- qr.resid(Aplus, r[, i]);  # residuals
 
-    #if (sum(res^2) < .01) print(c(i,sum(res^2)))  # warning about too low variance
+        #if (sum(res^2) < .01) print(c(i,sum(res^2)))  # warning about too low variance
 
-	rss <- sum(res^2)
+	    rss <- sum(res^2)
 
-	# Rissanen's classic two-part MDL code-length (feel free
-	# to replace by more advanced universal code).
+	    # Rissanen's classic two-part MDL code-length (feel free
+	    # to replace by more advanced universal code).
 
-   	totCL <- totCL + n/2*log(twopie*rss/n) + k/2*log(n);
-   }
-   return(totCL);
+   	    totCL <- totCL + n/2*log(twopie*rss/n) + k/2*log(n);
+    }
+    return(totCL);
 }
 
 # complexity of a single (multivariate) sequence
 SC <- function(a) {
-   n <- nrow(a)-2;
-   if (n < 1) return(list(n=0,k=1,cl=0,rate=0));
-   cl <- evalSC(cbind(a[1:n,],a[1:n+1,]), a[1:n+2,]);
-   return(list(n=n,cl=cl,rate=cl/n));
+    n <- nrow(a)-2;
+    if (n < 1) return(list(n = 0,k = 1,cl = 0,rate = 0));
+    cl <- evalSC(cbind(a[1:n,],a[1:n+1,]), a[1:n+2,]);
+    return(list(n = n,cl = cl,rate = cl/n));
 }
 
 # complexity of a (multivariate) sequence given another
 SCcond <- function(a,b) {
-   n <- min(nrow(a), nrow(b))-2;
-   cl <- evalSC(cbind(a[1:n,],a[1:n+1,],b[1:n+2,]), a[1:n+2,]);
-   return(list(n=n,n,cl=cl,rate=cl/n));
+    n <- min(nrow(a), nrow(b))-2;
+    cl <- evalSC(cbind(a[1:n,],a[1:n+1,],b[1:n+2,]), a[1:n+2,]);
+    return(list(n=n,n,cl=cl,rate=cl/n));
 }
    
 # Process the given data matrices by removing rows duplicated in
@@ -111,7 +106,7 @@ throughput <- function(a, b, fps = 120, pca = FALSE) {
     lena <- nrow(a);
 
     if (pca) {
-        pcs <- prcomp(a, retx=TRUE, center=TRUE, scale.=TRUE);
+        pcs <- prcomp(a, retx = TRUE, center = TRUE, scale. = TRUE);
 
         sum <- 0;
         evecs <- 0;
@@ -138,7 +133,7 @@ throughput <- function(a, b, fps = 120, pca = FALSE) {
 }
 
 # Calculate throughput for a given pair of files.
-TPpair <- function(filename1, filename2, fps = 120, pca = FALSE, amc=FALSE) {
+TPpair <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE) {
     a <- read.table(filename1);
     b <- read.table(filename2);
 
@@ -171,10 +166,9 @@ TPpair <- function(filename1, filename2, fps = 120, pca = FALSE, amc=FALSE) {
 # in files that are named in the following way:
 #         <seq1 #>_ali_<seq2 #>.txt
 # Example: "14_ali_15.txt".
-TPdir <- function(fps=120, pca = FALSE, amc=FALSE) {
-    if (amc) { # count amc files
+TPdir <- function(fps = 120, pca = FALSE, amc = FALSE) {
+    if (amc) # count amc files
         files <- dir(".", "^[[:digit:]]+.amc");
-    }
     else # count coordinate data files
         files <- dir(".", "^[[:digit:]]+.txt");
     seqs <- length(files);
