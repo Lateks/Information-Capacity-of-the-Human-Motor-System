@@ -8,17 +8,14 @@
 # code by Teemu Roos, Feb 15, 2011
 # teemu.roos (at) cs.helsinki.fi
 #
-# Data should be stored in directory 'aligneddata'
-# Currently expects files 05_%d_ali_%d.txt to be the 20 
-# sequences in category 'Subject #5: modern dance" from
-# mocap.cs.cmu.edu /after alignment/. To align, we recommend
-# Canonical Time Warping, from www.humansensing.cs.cmu.edu/
-# projects/ctwCode.html .
-#
 # Current version:
 # Modified for more general use and added PCA functionality
 # by Laura Leppänen (research assistant), Sep 9, 2011
 # laura.leppanen (at) cs.helsinki.fi
+#
+# Data needs to be aligned temporally before being evaluated
+# for information capacity. To align, we recommend Canonical
+# Time Warping, from www.humansensing.cs.cmu.edu/projects/ctwCode.html
 #
 #####################################################################
 
@@ -49,7 +46,7 @@ evalSC <- function(v, r) {
                         v[, 2*ncol(r)+i],
                         v[, 3*ncol(r)+i]));
             k = 6;
-	    }
+        }
 
         b <- qr.coef(Aplus, r[,i]);      # least squares fit
         res <- qr.resid(Aplus, r[, i]);  # residuals
@@ -58,8 +55,8 @@ evalSC <- function(v, r) {
 
         rss <- sum(res^2)
 
-	    # Rissanen's classic two-part MDL code-length (feel free
-	    # to replace by more advanced universal code).
+        # Rissanen's classic two-part MDL code-length (feel free
+        # to replace by more advanced universal code).
         totCL <- totCL + n/2*log(twopie*rss/n) + k/2*log(n);
     }
     return(totCL);
