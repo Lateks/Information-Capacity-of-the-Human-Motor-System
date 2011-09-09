@@ -29,39 +29,38 @@ evalSC <- function(v, r) {
     n <- nrow(r);           # number of features
     totCL <- 0;             # total code-length over all features
     for (i in 1:ncol(r)) {
-	    # extract regressors depending on the input size
+        # extract regressors depending on the input size
         if (ncol(v) == ncol(r)) {
-	        Aplus <- qr(cbind(matrix(1,n,1), v[, i]));
-		    k = 3;
+            Aplus <- qr(cbind(matrix(1,n,1), v[, i]));
+            k = 3;
         }
         if (ncol(v) == 2 * ncol(r)) {
-		    Aplus <- qr(cbind(matrix(1,n,1), v[, i], v[, ncol(r)+i]));
-		    k = 4;
+            Aplus <- qr(cbind(matrix(1,n,1), v[, i], v[, ncol(r)+i]));
+            k = 4;
         }
-	    if (ncol(v) == 3 * ncol(r)) {
-	        Aplus <- qr(cbind(matrix(1,n,1), v[, i], v[, ncol(r)+i], 
-		      	 		         v[, 2*ncol(r)+i]));
-		    k = 5;
-	    }
-	    if (ncol(v) == 4 * ncol(r))
-	    {
-	     	Aplus <- qr(cbind(matrix(1,n,1), v[, i], v[, ncol(r)+i], 
-		      	 		         v[, 2*ncol(r)+i],
-		      	 		         v[, 3*ncol(r)+i]));
-		    k = 6;
+        if (ncol(v) == 3 * ncol(r)) {
+            Aplus <- qr(cbind(matrix(1,n,1), v[, i], v[, ncol(r)+i], 
+                        v[, 2*ncol(r)+i]));
+            k = 5;
+        }
+        if (ncol(v) == 4 * ncol(r))
+        {
+            Aplus <- qr(cbind(matrix(1,n,1), v[, i], v[, ncol(r)+i], 
+                        v[, 2*ncol(r)+i],
+                        v[, 3*ncol(r)+i]));
+            k = 6;
 	    }
 
-   	    b <- qr.coef(Aplus, r[,i]);      # least squares fit
-   	    res <- qr.resid(Aplus, r[, i]);  # residuals
+        b <- qr.coef(Aplus, r[,i]);      # least squares fit
+        res <- qr.resid(Aplus, r[, i]);  # residuals
 
         #if (sum(res^2) < .01) print(c(i,sum(res^2)))  # warning about too low variance
 
-	    rss <- sum(res^2)
+        rss <- sum(res^2)
 
 	    # Rissanen's classic two-part MDL code-length (feel free
 	    # to replace by more advanced universal code).
-
-   	    totCL <- totCL + n/2*log(twopie*rss/n) + k/2*log(n);
+        totCL <- totCL + n/2*log(twopie*rss/n) + k/2*log(n);
     }
     return(totCL);
 }
@@ -85,18 +84,18 @@ SCcond <- function(a,b) {
 # time warping and by normalizing features.
 processdata <- function(a, b) {
     # remove rows duplicated in sequence 'a' due to alignment
-	skip <- matrix(FALSE, nrow(a));
-	skip <- rowSums((a[2:nrow(a),]-a[1:(nrow(a)-1),])^2) < 0.001;
-	a <- a[!skip,];
-	b <- b[!skip,];
+    skip <- matrix(FALSE, nrow(a));
+    skip <- rowSums((a[2:nrow(a),]-a[1:(nrow(a)-1),])^2) < 0.001;
+    a <- a[!skip,];
+    b <- b[!skip,];
 
-	# normalize features
-	a <- t(apply(a,1,'-',apply(a,2,mean)));
-	a <- t(apply(a,1,'/',sqrt(apply(a,2,var))));
-	a[is.nan(a)]<-0;
-	b <- t(apply(b,1,'-',apply(b,2,mean)));
-	b <- t(apply(b,1,'/',sqrt(apply(b,2,var))));
-	b[is.nan(b)]<-0;
+    # normalize features
+    a <- t(apply(a,1,'-',apply(a,2,mean)));
+    a <- t(apply(a,1,'/',sqrt(apply(a,2,var))));
+    a[is.nan(a)]<-0;
+    b <- t(apply(b,1,'-',apply(b,2,mean)));
+    b <- t(apply(b,1,'/',sqrt(apply(b,2,var))));
+    b[is.nan(b)]<-0;
 
     return(list(a, b))
 }
