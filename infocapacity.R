@@ -78,8 +78,7 @@ evalR <- function(v,r) {
         }
         res[[i]] <- qr.resid(Aplus, r[, i]);  
     }
-    print(k);
-	return(res);
+    return(res);
 }
 
 # Shared information of sequences a and b using complexity
