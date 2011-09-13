@@ -76,29 +76,35 @@ evalR <- function(v,r) {
             Aplus <- qr(cbind(matrix(1,n,1), v[, i], v[, ncol(r)+i]));
             k <- 4;
         }
-        res <- c(res, qr.resid(Aplus, r[, i]));  
+        res[[i]] <- qr.resid(Aplus, r[, i]);  
     }
-    # Convert list to matrix
-	return(do.call(rbind, res));
+    print(k);
+	return(res);
 }
 
+# Shared information of sequences a and b using complexity
+# defined by residuals
 SI <- function(a,b) {
-    n <- min(nrow(a), nrow(b))-2; # shouldn't nrow(a) == nrow(b)? and why -2?
+    n <- min(nrow(a), nrow(b))-2;
+    totSIa <- 0;
     
     resa <- evalR(cbind(a[1:n,],a[1:n+1,]), a[1:n+2,]);
     resb <- evalR(cbind(b[1:n,],b[1:n+1,]), b[1:n+2,]);
 
-    # Not sure if this is what we want to do
-    lm.ra = lm(resa ~ resb);
-    resaf = fitted(lm.ra);
+    # Not sure if this is what we want to do.
+    # This produces way too large results when summing
+    # over all features.
+    for (i in 1:length(resa)) {
+        lm.ra = lm(resa[[i]] ~ resb[[i]]);
+        resaf = fitted(lm.ra);
 
-    # What should we be summing over here?
-    rssa <- sum(resa^2);
-    rssaf <- sum(resaf^2);
+        rssa <- sum(resa[[i]]^2);
+        rssaf <- sum(resaf^2);
 
-    SIa <- n/2*log(rssa/rssaf) - log(n)*3/2;
+        totSIa <- totSIa + (n/2*log(rssa/rssaf) - log(n)*3/2);
+    }
 
-    return(list(n=n, SIa=SIa));
+    return(list(n=n, SIa=totSIa));
 }
 
 # complexity of a single (multivariate) sequence
