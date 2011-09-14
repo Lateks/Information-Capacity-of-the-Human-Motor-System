@@ -21,7 +21,7 @@
 
 twopie = 2*pi*exp(1);
 
-# return stochastic complexity of sequence r with side information v
+# Return stochastic complexity of sequence r with side information v
 evalSC <- function(v, r) {
     n <- nrow(r);           # number of features
     totCL <- 0;             # total code-length over all features
@@ -62,7 +62,8 @@ evalSC <- function(v, r) {
     return(totCL);
 }
 
-# return residuals from ar(2)
+# Return residuals from AR(2) as a list where each element is the
+# residual vector for the corresponding feature
 evalR <- function(v,r) {
     n <- nrow(r); # number of frames
     res = list();
@@ -100,13 +101,13 @@ SI <- function(a,b) {
         rssa <- sum(resa[[i]]^2);
         rssaf <- sum(resaf^2);
 
-        totSIa <- totSIa + (n/2*log(rssa/rssaf) - log(n)*3/2);
+        totSIa <- totSIa + (n/2*log(rssa/rssaf) - log(n)*3);
     }
 
     return(list(n=n, SIa=totSIa));
 }
 
-# complexity of a single (multivariate) sequence
+# Complexity of a single (multivariate) sequence
 SC <- function(a) {
     n <- nrow(a)-2;
     if (n < 1) return(list(n = 0,k = 1,cl = 0,rate = 0));
@@ -114,31 +115,33 @@ SC <- function(a) {
     return(list(n = n,cl = cl,rate = cl/n));
 }
 
-# complexity of a (multivariate) sequence given another
+# Complexity of a (multivariate) sequence given another
 SCcond <- function(a,b) {
     n <- min(nrow(a), nrow(b))-2;
     cl <- evalSC(cbind(a[1:n,],a[1:n+1,],b[1:n+2,]), a[1:n+2,]);
     return(list(n=n,n,cl=cl,rate=cl/n));
 }
-   
-# Process the given data matrices by removing rows duplicated in
-# time warping and by normalizing features.
-processdata <- function(a, b) {
-    # remove rows duplicated in sequence 'a' due to alignment
-    skip <- matrix(FALSE, nrow(a));
-    skip <- rowSums((a[2:nrow(a),]-a[1:(nrow(a)-1),])^2) < 0.001;
+
+# Removes duplicated rows from both sequences.
+remove_duplicate_frames <- function(a, b) {
+    skipa <- matrix(FALSE, nrow(a));
+    skipa <- rowSums((a[2:nrow(a),]-a[1:(nrow(a)-1),])^2) < 0.001;
+    skipb <- matrix(FALSE, nrow(b));
+    skipb <- rowSums((b[2:nrow(b),]-b[1:(nrow(b)-1),])^2) < 0.001;
+    skip <- skipa | skipb;
     a <- a[!skip,];
     b <- b[!skip,];
 
-    # normalize features
+    return(list(a, b));
+}
+
+# Perform normalization on the features of a matrix.
+normalize_features <- function(a) {
     a <- t(apply(a,1,'-',apply(a,2,mean)));
     a <- t(apply(a,1,'/',sqrt(apply(a,2,var))));
     a[is.nan(a)]<-0;
-    b <- t(apply(b,1,'-',apply(b,2,mean)));
-    b <- t(apply(b,1,'/',sqrt(apply(b,2,var))));
-    b[is.nan(b)]<-0;
 
-    return(list(a, b))
+    return(a);
 }
 
 # Calculate throughput for a given pair of matrices.
@@ -187,8 +190,9 @@ TPpair <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE, re
         b$V34=NULL; b$V46=NULL;
     }
 
-    datams <- processdata(a, b);
-    a <- datams[[1]]; b <- datams[[2]];
+    datams <- remove_duplicate_frames(a, b);
+    a <- normalize_features(datams[[1]]);
+    b <- normalize_features(datams[[2]]);
 
     return(throughput(a, b, fps = fps, pca = pca, res = res));
 }
