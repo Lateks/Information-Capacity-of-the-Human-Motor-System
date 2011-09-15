@@ -10,7 +10,7 @@ veclist <- list() # can i has pointers? no? oh well...
 # - col, column whose previous non-NA value should be found
 #
 # Returns the index of the previous line with a non-NA value in the given
-# column.
+# column or zero if none are found.
 find_prev <- function(curr, col) {
     prev = curr - 1
     while (prev > 0 && is.na(veclist[[prev]][[col]]))
@@ -52,15 +52,15 @@ parse_values_to_veclist <- function(lines) {
 
         touchpoints <- length(veclist[[j]])/3
         if (touchpoints > max_tps)
-            max_tps <- touchpoints;
+            max_tps <- touchpoints
 
         # Skip every third value in the vector (these are the "taps: 1" or "taps: 0"
         # values that mostly stay constant) because they do not appear informative.
         for (k in 1:touchpoints)
-            skipi <- c(skipi, skip);
+            skipi <- c(skipi, skip)
         veclist[[j]] <<- veclist[[j]][!skipi]
     }
-    return(max_tps);
+    return(max_tps)
 }
 
 # Fills in empty value pairs in the vector list (global variable veclist)
@@ -68,7 +68,7 @@ parse_values_to_veclist <- function(lines) {
 # belong to when values are missing from the row.
 fill_in_empty_values <- function(max_tps) {
     missing_val = c(NA, NA) # what to replace missing (X, Y) value pairs with
-    max_seen = FALSE;
+    max_seen = FALSE
 
     for (j in 1:length(veclist)) {
         if (length(veclist[[j]])/2 == max_tps) # do nothing if no values missing
@@ -80,7 +80,7 @@ fill_in_empty_values <- function(max_tps) {
         if (prev1 == 0) { # missing values are at the beginning of the file
             # need to find the next full row to find out which features the existing
             # values (and missing ones) belong to
-            next_max_row <- find_next(max_tps, j);
+            next_max_row <- find_next(max_tps, j)
             
             dist_to_nextx1 <- abs(veclist[[j]][[1]] - veclist[[next_max_row]][[1]])
             dist_to_nextx2 <- abs(veclist[[j]][[1]] - veclist[[next_max_row]][[3]])
@@ -132,7 +132,7 @@ parse_logs <- function(logdir = ".", destination = "data") {
 
         fill_in_empty_values(max_tps)
 
-        result <- do.call(rbind, veclist);
+        result <- do.call(rbind, veclist)
         write.table(result, sprintf("%s/%s", destination, resultfile), sep='\t', row.names=FALSE, col.names=FALSE)
     }
 }
