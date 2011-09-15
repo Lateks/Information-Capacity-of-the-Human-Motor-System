@@ -1,3 +1,9 @@
+# Parse iPad multitouch logs into matrices usable by the infocapacity
+# script. See the comments on the parse_logs function for instructions
+# for use.
+#
+# by Laura Leppänen, 15th September 2011
+
 library(stringr)
 # Note: stringr requires R version 2.11
 # Therefore does not currently (15.9.2011) work on CS department computers
@@ -63,11 +69,35 @@ parse_values_to_veclist <- function(lines) {
     return(max_tps)
 }
 
+# Compares the distances of the X variable on the current row (curr)
+# in veclist to the X variables on rows other1 (first X variable) and
+# other2 (second X variable).
+#
+# Assume that other2=other1 when other2 is not explicitly given.
+#
+# Estimates which feature the X variable values on the current row
+# belong to according to distance comparison results.
+#
+# Finally returns the current row vector with missing values replaced
+# with NA.
+guess_correct_features <- function(curr, other1, other2 = NULL) {
+    missing_val <- c(NA, NA) # what to replace missing (X, Y) value pairs with
+    if (is.null(other2))
+        other2 <- other1
+    dist_to_other1 <- abs(veclist[[curr]][[1]] - veclist[[other1]][[1]])
+    dist_to_other2 <- abs(veclist[[curr]][[1]] - veclist[[other2]][[3]])
+    
+    # choose the feature with the X value closest to the current X value
+    if (dist_to_other1 < dist_to_other2) {
+        return(c(veclist[[curr]], missing_val))
+    } else
+        return(c(missing_val, veclist[[curr]]))
+}
+
 # Fills in empty value pairs in the vector list (global variable veclist)
 # with NA values and attempts to parse which features (columns) the values
 # belong to when values are missing from the row.
 fill_in_empty_values <- function(max_tps) {
-    missing_val = c(NA, NA) # what to replace missing (X, Y) value pairs with
     max_seen = FALSE
 
     for (j in 1:length(veclist)) {
@@ -81,27 +111,9 @@ fill_in_empty_values <- function(max_tps) {
             # need to find the next full row to find out which features the existing
             # values (and missing ones) belong to
             next_max_row <- find_next(max_tps, j)
-            
-            dist_to_nextx1 <- abs(veclist[[j]][[1]] - veclist[[next_max_row]][[1]])
-            dist_to_nextx2 <- abs(veclist[[j]][[1]] - veclist[[next_max_row]][[3]])
-            
-            # choose the feature with the X value closest to the current X value
-            if (dist_to_nextx1 < dist_to_nextx2) {
-                veclist[[j]] <<- c(veclist[[j]], missing_val)
-            } else
-                veclist[[j]] <<- c(missing_val, veclist[[j]])
-        }
-        else { # missing values are at the middle of end of the file
-            dist_to_prevx1 <- abs(veclist[[j]][[1]] - veclist[[prev1]][[1]])
-            dist_to_prevx2 <- abs(veclist[[j]][[1]] - veclist[[prev2]][[3]])
-
-            # choose the feature with the X value closest to the current X value
-            if (dist_to_prevx1 <= dist_to_prevx2) {
-                veclist[[j]] <<- c(veclist[[j]], missing_val)
-            }
-            else
-                veclist[[j]] <<- c(missing_val, veclist[[j]])
-        }
+            veclist[[j]] <<- guess_correct_features(j, next_max_row)
+        } else # missing values are at the middle or end of the file
+            veclist[[j]] <<- guess_correct_features(j, prev1, prev2)
     }
 }
 
