@@ -10,16 +10,16 @@ library(stringr)
 
 veclist <- list() # can i has pointers? no? oh well...
 
-# Finds the previous line with a non-NA value in column col.
+# Finds the previous line with a non-NaN value in column col.
 # Parameters:
 # - curr, the current line in veclist (prev defined in relation to curr)
-# - col, column whose previous non-NA value should be found
+# - col, column whose previous non-NaN value should be found
 #
-# Returns the index of the previous line with a non-NA value in the given
+# Returns the index of the previous line with a non-NaN value in the given
 # column or zero if none are found.
 find_prev <- function(curr, col) {
     prev = curr - 1
-    while (prev > 0 && is.na(veclist[[prev]][[col]]))
+    while (prev > 0 && is.nan(veclist[[prev]][[col]]))
         prev = prev - 1
     return(prev)
 }
@@ -79,9 +79,9 @@ parse_values_to_veclist <- function(lines) {
 # belong to according to distance comparison results.
 #
 # Finally returns the current row vector with missing values replaced
-# with NA.
+# with NaN.
 guess_correct_features <- function(curr, other1, other2 = NULL) {
-    missing_val <- c(NA, NA) # what to replace missing (X, Y) value pairs with
+    missing_val <- c(NaN, NaN) # what to replace missing (X, Y) value pairs with
     if (is.null(other2))
         other2 <- other1
     dist_to_other1 <- abs(veclist[[curr]][[1]] - veclist[[other1]][[1]])
@@ -95,7 +95,7 @@ guess_correct_features <- function(curr, other1, other2 = NULL) {
 }
 
 # Fills in empty value pairs in the vector list (global variable veclist)
-# with NA values and attempts to parse which features (columns) the values
+# with NaN values and attempts to parse which features (columns) the values
 # belong to when values are missing from the row.
 fill_in_empty_values <- function(max_tps) {
     max_seen = FALSE
@@ -125,6 +125,8 @@ fill_in_empty_values <- function(max_tps) {
 # data files will be named <number>.txt.
 parse_logs <- function(logdir = ".", destination = "data") {
     logfiles <- dir(logdir, "^[[:digit:]]+.log$")
+    if (!file.exists(destination))
+        dir.create(destination)
     
     for (i in 1:length(logfiles)) {
         print(logfiles[i])
