@@ -19,11 +19,13 @@
 #
 #####################################################################
 
+options(width=Sys.getenv("COLUMNS"));
 twopie = 2*pi*exp(1);
 
 # Return stochastic complexity of sequence r with side information v
-evalSC <- function(v, r) {
+evalSC <- function(v, r, war = FALSE) {
     n <- nrow(r);           # number of features
+    featCL <- array(0,ncol(r)); # array of feature code-lengths
     totCL <- 0;             # total code-length over all features
     for (i in 1:ncol(r)) {
         # extract regressors depending on the input size
@@ -48,18 +50,24 @@ evalSC <- function(v, r) {
             k = 6;
         }
 
-        b <- qr.coef(Aplus, r[,i]);      # least squares fit
+        # b <- qr.coef(Aplus, r[,i]);      # least squares fit
         res <- qr.resid(Aplus, r[, i]);  # residuals
-
-        if (sum(res^2) < .01) print(c(i,sum(res^2)))  # warning about possibly too low variance
+        
+        # warning about possibly too low variance
+        if (war) {
+            if (sum(res^2) < .01) print(c(i,sum(res^2)))
+        }
 
         rss <- sum(res^2)
 
         # Rissanen's classic two-part MDL code-length (feel free
         # to replace by more advanced universal code).
-        totCL <- totCL + n/2*log(twopie*rss/n) + k/2*log(n);
-    }
-    return(totCL);
+		MDL <-  n/2*log(twopie*rss/n) + k/2*log(n);
+
+		featCL[i] <- MDL;
+	   	totCL <- totCL + MDL;    
+	}
+    return(list(totCL=totCL, featCL=featCL, rss=rss));
 }
 
 # Return residuals from AR(2) as a list where each element is the
@@ -87,6 +95,7 @@ evalR <- function(v,r) {
 SI <- function(a,b) {
     n <- min(nrow(a), nrow(b))-2;
     totSIa <- 0;
+    fSIa <- array(0,ncol(a));
     
     resa <- evalR(cbind(a[1:n,],a[1:n+1,]), a[1:n+2,]);
     resb <- evalR(cbind(b[1:n,],b[1:n+1,]), b[1:n+2,]);
@@ -100,26 +109,35 @@ SI <- function(a,b) {
 
         rssa <- sum(resa[[i]]^2);
         rssaf <- sum(resaf^2);
-
-        totSIa <- totSIa + (n/2*log(rssa/rssaf) - log(n)*3);
+        
+        SIa <- (n/2*log(rssa/rssaf) - log(n)*3);
+        
+        fSIa[i] <- SIa;
+        totSIa <- totSIa + SIa;
     }
 
-    return(list(n=n, SIa=totSIa));
+    return(list(n=n, SIa=totSIa, fSIa=fSIa));
 }
 
 # Complexity of a single (multivariate) sequence
-SC <- function(a) {
+SC <- function(a, war=FALSE) {
     n <- nrow(a)-2;
     if (n < 1) return(list(n = 0,k = 1,cl = 0,rate = 0));
-    cl <- evalSC(cbind(a[1:n,],a[1:n+1,]), a[1:n+2,]);
-    return(list(n = n,cl = cl,rate = cl/n));
+	SC <- evalSC(cbind(a[1:n,],a[1:n+1,]), a[1:n+2,], war=war);
+	cl <- SC$totCL;
+	fcl <- SC$featCL;
+    rss <- SC$rss;
+	return(list(n=n, cl=cl, rate=cl/n, fcl=fcl, rss=rss));
 }
 
 # Complexity of a (multivariate) sequence given another
-SCcond <- function(a,b) {
+SCcond <- function(a,b, war=FALSE) {
     n <- min(nrow(a), nrow(b))-2;
-    cl <- evalSC(cbind(a[1:n,],a[1:n+1,],b[1:n+2,]), a[1:n+2,]);
-    return(list(n=n,n,cl=cl,rate=cl/n));
+    SC <- evalSC(cbind(a[1:n,],a[1:n+1,],b[1:n+2,]), a[1:n+2,], war=war);
+    cl <- SC$totCL;
+    fcl <- SC$featCL;
+    rss <- SC$rss;
+    return(list(n=n, cl=cl, rate=cl/n, fcl=fcl, rss=rss));
 }
 
 # Removes duplicated rows from both sequences.
@@ -145,7 +163,7 @@ normalize_features <- function(a) {
 }
 
 # Calculate throughput for a given pair of matrices.
-throughput <- function(a, b, fps = 120, pca = FALSE, res = FALSE) {
+throughput <- function(a, b, fps = 120, pca = FALSE, res = FALSE, ftp = FALSE, war = FALSE) {
     lena <- nrow(a);
 
     if (pca) {
@@ -164,22 +182,34 @@ throughput <- function(a, b, fps = 120, pca = FALSE, res = FALSE) {
         a <- a %*% eigenvec;
         b <- b %*% eigenvec;
     }
-
-    if (res) # Return shared information determined by residuals
-        return(SI(a, b)$SIa/lena*120/log(2.0))
+    
+    # Return shared information determined by residuals
+    if (res) {
+        tp <- SI(a, b)$SIa/lena*120/log(2.0);
+        featTP <- SI(a, b)$fSIa/lena*120/log(2.0);
+        return(list(tp=tp, featTP=featTP));
+    }
 
     # compute stochastic complexity with and without condition
-    ca <- SC(a)$cl;
-    cab <- SCcond(a, b)$cl;
+    ca <- SC(a, war)$cl;
+    cab <- SCcond(a, b, war)$cl;
 
     # calculate throughput
     tp <- (ca - cab)/lena*fps/log(2.0);
+    
+    # calculate feature TPs
+    featureTP <- array(0,ncol(a));
+    if (ftp) {
+        for (k in 1:ncol(a)) {
+            featureTP[k] <- (SC(a)$fcl[k] - SCcond(a,b)$fcl[k])/lena*120/log(2.0);
+        }
+    }
 
-    return(tp);
+    return(list(tp=tp, featTP = featureTP));
 }
 
 # Calculate throughput for a given pair of files.
-TPpair <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE, res = FALSE) {
+TPpair <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE, res = FALSE, ftp = FALSE, war = FALSE) {
     a <- read.table(filename1);
     b <- read.table(filename2);
 
@@ -194,7 +224,7 @@ TPpair <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE, re
     a <- normalize_features(datams[[1]]);
     b <- normalize_features(datams[[2]]);
 
-    return(throughput(a, b, fps = fps, pca = pca, res = res));
+    return(throughput(a, b, fps = fps, pca = pca, res = res, ftp=ftp, war=war));
 }
 
 # Calculate throughput for all aligned sequence pairs in the directory (by
@@ -213,22 +243,29 @@ TPpair <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE, re
 # in files that are named in the following way:
 #         <seq1 #>_ali_<seq2 #>.txt
 # Example: "14_ali_15.txt".
-TPdir <- function(fps = 120, pca = FALSE, amc = FALSE, res = FALSE) {
+TPdir <- function(fps = 120, pca = FALSE, amc = FALSE, res = FALSE, ftp = FALSE, war = FALSE) {
     if (amc) { # count amc files
         files <- dir(".", "^[[:digit:]]+.amc");
     } else # count coordinate data files
         files <- dir(".", "^[[:digit:]]+.txt");
     seqs <- length(files);
-
+	
+	# matrix for total TPs
     M <- matrix(0, seqs, seqs);
+	# array for feature-TPs for each sequence
+	F <- array(list(NULL), c(seqs, seqs));
 
     for (i in seq(1, seqs-1, by=2)) {
         j = i+1;
-        file1 <- sprintf("aligneddata/%d_ali_%d.txt", i, j);
-        file2 <- sprintf("aligneddata/%d_ali_%d.txt", j, i);
-        M[i,j] <- TPpair(file1, file2, fps = fps, pca = pca, amc = amc, res = res);
-        M[j,i] <- TPpair(file2, file1, fps = fps, pca = pca, amc = amc, res = res);
+        file1 <- sprintf("aligneddata/data_%d_ali_%d.txt", i, j);
+        file2 <- sprintf("aligneddata/data_%d_ali_%d.txt", j, i);
+        M[i,j] <- TPpair(file1, file2, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war)$tp;
+        M[j,i] <- TPpair(file2, file1, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war)$tp;
+        if (ftp) {
+            F[i,j] <- list(TPpair(file1, file2, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war)$featTP);
+            F[j,i] <- list(TPpair(file2, file1, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war)$featTP);
+        }
     }
 
-    return(M);
+    return(list(M=M, F=F));
 }
