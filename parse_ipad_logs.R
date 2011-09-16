@@ -84,11 +84,17 @@ guess_correct_features <- function(curr, other1, other2 = NULL) {
     missing_val <- c(NaN, NaN) # what to replace missing (X, Y) value pairs with
     if (is.null(other2))
         other2 <- other1
-    dist_to_other1 <- abs(veclist[[curr]][[1]] - veclist[[other1]][[1]])
-    dist_to_other2 <- abs(veclist[[curr]][[1]] - veclist[[other2]][[3]])
+
+    dist_to_otherx1 <- abs(veclist[[curr]][[1]] - veclist[[other1]][[1]])
+    dist_to_otherx2 <- abs(veclist[[curr]][[1]] - veclist[[other2]][[3]])
+
+    dist_to_othery1 <- abs(veclist[[curr]][[2]] - veclist[[other1]][[2]])
+    dist_to_othery2 <- abs(veclist[[curr]][[2]] - veclist[[other2]][[4]])
     
-    # choose the feature with the X value closest to the current X value
-    if (dist_to_other1 < dist_to_other2) {
+    # Choose the X and Y feature pair with values closest to the values on
+    # the current row. A word of caution: this might not work so well
+    # with very fast touch point movements.
+    if (dist_to_otherx1 < dist_to_otherx2 && dist_to_othery1 < dist_to_othery2) {
         return(c(veclist[[curr]], missing_val))
     } else
         return(c(missing_val, veclist[[curr]]))
