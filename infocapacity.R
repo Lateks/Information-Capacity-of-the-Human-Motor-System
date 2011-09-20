@@ -259,23 +259,23 @@ TPdir <- function(fps = 120, pca = FALSE, amc = FALSE, res = FALSE, ftp = FALSE,
     if (amc) { # count amc files
         files <- dir(".", "^[[:digit:]]+.amc");
     } else # count coordinate data files
-        files <- dir(".", "^[[:digit:]]+.txt");
+    files <- dir(".", "^[[:digit:]]+.txt");
     seqs <- length(files);
 	
 	# 2-column array for total TPs
 	M <- array(0, c(seqs/2, 2));
 	# 2-column array for feature-TPs for each sequence
-	F <- array(list(NULL), c(seqs/2, 2));	
+	F <- array(list(NULL), c(seqs/2, 2));
 	
-	## matrix for total TPs
+    ## matrix for total TPs
     #M <- matrix(0, seqs, seqs);
-	## array for feature-TPs for each sequence
+    ## array for feature-TPs for each sequence
 	#F <- array(list(NULL), c(seqs, seqs));
 	
 	# made a little change to the original code to present the return values prettier
     for (i in 1:(seqs/2)) {
         j = 2*i;
-		k = j-1;
+        k = j-1;
         file1 <- sprintf("aligneddata/data_%d_ali_%d.txt", k, j);
         file2 <- sprintf("aligneddata/data_%d_ali_%d.txt", j, k);
         M[i,1] <- TPpair(file1, file2, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war, noise = noise)$tp;
