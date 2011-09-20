@@ -100,17 +100,14 @@ SI <- function(a,b) {
     resa <- evalR(cbind(a[1:n,],a[1:n+1,]), a[1:n+2,]);
     resb <- evalR(cbind(b[1:n,],b[1:n+1,]), b[1:n+2,]);
 
-    # Not sure if this is what we want to do.
-    # This produces way too large results when summing
-    # over all features.
     for (i in 1:length(resa)) {
         lm.ra = lm(resa[[i]] ~ resb[[i]]);
-        resaf = fitted(lm.ra);
+        resaf = resid(lm.ra);
 
         rssa <- sum(resa[[i]]^2);
         rssaf <- sum(resaf^2);
         
-        SIa <- (n/2*log(rssa/rssaf) - log(n)*3);
+        SIa <- (n/2*log(rssa/rssaf) - log(n)/2);
         
         fSIa[i] <- SIa;
         totSIa <- totSIa + SIa;
