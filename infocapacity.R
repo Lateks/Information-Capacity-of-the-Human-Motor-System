@@ -159,6 +159,16 @@ normalize_features <- function(a) {
     return(a);
 }
 
+# Add noise on the features of a matrix.           
+add_noise <- function(a, x) {
+	nfeat <- ncol(a);
+	for (k in 1:nfeat) {
+    	feat_var <- var(a[,k]);
+    	a[,k] <- a[,k] + x * feat_var * rnorm(nrow(a));
+	}
+	return(a);
+}
+
 # Calculate throughput for a given pair of matrices.
 throughput <- function(a, b, fps = 120, pca = FALSE, res = FALSE, ftp = FALSE, war = FALSE) {
     lena <- nrow(a);
@@ -206,7 +216,7 @@ throughput <- function(a, b, fps = 120, pca = FALSE, res = FALSE, ftp = FALSE, w
 }
 
 # Calculate throughput for a given pair of files.
-TPpair <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE, res = FALSE, ftp = FALSE, war = FALSE) {
+TPpair <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE, res = FALSE, ftp = FALSE, war = FALSE, noise = 0) {
     a <- read.table(filename1);
     b <- read.table(filename2);
 
@@ -221,7 +231,12 @@ TPpair <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE, re
     a <- normalize_features(datams[[1]]);
     b <- normalize_features(datams[[2]]);
 
-    return(throughput(a, b, fps = fps, pca = pca, res = res, ftp=ftp, war=war));
+	if (noise > 0) {
+		a <- add_noise(a, noise);
+		b <- add_noise(b, noise);
+	}
+
+    return(throughput(a, b, fps = fps, pca = pca, res = res, ftp = ftp, war = war));
 }
 
 # Calculate throughput for all aligned sequence pairs in the directory (by
@@ -240,29 +255,39 @@ TPpair <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE, re
 # in files that are named in the following way:
 #         <seq1 #>_ali_<seq2 #>.txt
 # Example: "14_ali_15.txt".
-TPdir <- function(fps = 120, pca = FALSE, amc = FALSE, res = FALSE, ftp = FALSE, war = FALSE) {
+TPdir <- function(fps = 120, pca = FALSE, amc = FALSE, res = FALSE, ftp = FALSE, war = FALSE, noise = 0) {
     if (amc) { # count amc files
         files <- dir(".", "^[[:digit:]]+.amc");
     } else # count coordinate data files
         files <- dir(".", "^[[:digit:]]+.txt");
     seqs <- length(files);
 	
-	# matrix for total TPs
-    M <- matrix(0, seqs, seqs);
-	# array for feature-TPs for each sequence
-	F <- array(list(NULL), c(seqs, seqs));
-
-    for (i in seq(1, seqs-1, by=2)) {
-        j = i+1;
-        file1 <- sprintf("aligneddata/data_%d_ali_%d.txt", i, j);
-        file2 <- sprintf("aligneddata/data_%d_ali_%d.txt", j, i);
-        M[i,j] <- TPpair(file1, file2, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war)$tp;
-        M[j,i] <- TPpair(file2, file1, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war)$tp;
+	# 2-column array for total TPs
+	M <- array(0, c(seqs/2, 2));
+	# 2-column array for feature-TPs for each sequence
+	F <- array(list(NULL), c(seqs/2, 2));	
+	
+	## matrix for total TPs
+    #M <- matrix(0, seqs, seqs);
+	## array for feature-TPs for each sequence
+	#F <- array(list(NULL), c(seqs, seqs));
+	
+	# made a little change to the original code to present the return values prettier
+    for (i in 1:(seqs/2)) {
+        j = 2*i;
+		k = j-1;
+        file1 <- sprintf("aligneddata/data_%d_ali_%d.txt", k, j);
+        file2 <- sprintf("aligneddata/data_%d_ali_%d.txt", j, k);
+        M[i,1] <- TPpair(file1, file2, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war, noise = noise)$tp;
+        M[i,2] <- TPpair(file2, file1, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war, noise = noise)$tp;
         if (ftp) {
-            F[i,j] <- list(TPpair(file1, file2, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war)$featTP);
-            F[j,i] <- list(TPpair(file2, file1, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war)$featTP);
+            F[i,1] <- list(TPpair(file1, file2, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war, noise = noise)$featTP);
+            F[i,2] <- list(TPpair(file2, file1, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war, noise = noise)$featTP);
         }
     }
-
-    return(list(M=M, F=F));
+	if (ftp) {
+		return(list(M=M, F=F));
+	} else {
+		return(M=M);
+	}
 }
