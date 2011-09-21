@@ -32,8 +32,6 @@
 # by Laura Leppänen, 21st September 2011
 
 library(stringr)
-# Note: stringr requires R version 2.11
-# Therefore does not currently (15.9.2011) work on CS department computers
 
 veclist <- list() # can i has pointers? no? oh well...
 
@@ -68,14 +66,18 @@ find_next <- function(max_tps, curr) {
 # into the global variable veclist. Vectors can be of different lengths
 # if some values are missing on some lines.
 #
+# The first column of veclist will contain the timestamps (in milliseconds
+# after the start of logging). The columns containing the discrete variable
+# taps (with a value of either 1 or 0) are removed.
+#
 # Returns the maximum number of simultaneous touch points in the log file.
 parse_values_to_veclist <- function(lines) {
     max_tps <- 0
-    skip = c(FALSE, FALSE, TRUE)
+    skip = c(FALSE, FALSE, TRUE) # every third integer column is a taps variable
     last_timestamp = list(0.0)
 
     for (j in 1:length(lines)) {
-        skipi <- c(FALSE) # the first value (ms) will never be skipped
+        skipi <- c(FALSE)
         line <- strsplit(lines[j], "//")[[1]]
         if (is.na(line[1])) {
             print("Encountered empty line in the log file.")
@@ -93,9 +95,6 @@ parse_values_to_veclist <- function(lines) {
         if (touchpoints > max_tps)
             max_tps <- touchpoints
 
-        # Skip every third value in the vector/list (these are the "taps: 1" or
-        # "taps: 0" values that mostly stay constant) because they do not appear
-        # informative.
         for (k in 1:touchpoints)
             skipi <- c(skipi, skip)
         veclist[[j]] <<- veclist[[j]][!skipi]
@@ -103,16 +102,10 @@ parse_values_to_veclist <- function(lines) {
     return(max_tps)
 }
 
-# Compares the distances of the X variable on the current row (curr)
-# in veclist to the X variables on rows other1 (first X variable) and
-# other2 (second X variable).
+# Estimates which feature the X and Y variable values on the current
+# row belong to using Euclidean distance as the measure.
 #
-# Assume that other2=other1 when other2 is not explicitly given.
-#
-# Estimates which feature the X variable values on the current row
-# belong to according to distance comparison results.
-#
-# Finally returns the current row vector with missing values replaced
+# Returns the current row vector (or list) with missing values replaced
 # with NaN.
 guess_correct_features <- function(curr, other1, other2 = NULL) {
     missing_val <- c(NaN, NaN) # what to replace missing (X, Y) value pairs with
@@ -125,8 +118,6 @@ guess_correct_features <- function(curr, other1, other2 = NULL) {
     dist_to_othery1 <- abs(veclist[[curr]][[3]] - veclist[[other1]][[3]])
     dist_to_othery2 <- abs(veclist[[curr]][[3]] - veclist[[other2]][[5]])
     
-    # Choose the X and Y feature pair with the shortest Euclidean distance
-    # to the current value pair.
     if (sqrt(dist_to_otherx1**2 + dist_to_othery1**2) <
         sqrt(dist_to_otherx2**2 + dist_to_othery2**2)) {
         return(c(veclist[[curr]], missing_val))
@@ -141,15 +132,14 @@ fill_in_empty_values <- function(max_tps) {
     max_seen = FALSE
 
     for (j in 1:length(veclist)) {
-        if ((length(veclist[[j]]) - 1)/2 == max_tps) # do nothing if no values missing
+        if ((length(veclist[[j]]) - 1)/2 == max_tps) # no values missing
             next
 
         prev1 <- find_prev(j, 2)
         prev2 <- find_prev(j, 4)
 
-        if (prev1 == 0 || prev2 == 0) { # missing values are at the beginning of the file
-            # need to find the next full row to find out which features the existing
-            # values (and missing ones) belong to
+        if (prev1 == 0 || prev2 == 0) {
+            # missing values are at the beginning of the file
             next_max_row <- find_next(max_tps, j)
             veclist[[j]] <<- guess_correct_features(j, next_max_row)
         } else # missing values are at the middle or end of the file
@@ -158,11 +148,13 @@ fill_in_empty_values <- function(max_tps) {
 }
 
 # This is the main function that should be called. Parameters are:
-# - logdir, path to the directory containing the multitouch logs ("." by default)
-# - destination, path to the directory that should contain the parsed data ("data" by default)
+# - logdir, path to the directory containing the multitouch logs
+#   ("." by default)
+# - destination, path to the directory that should contain the
+#   parsed data ("data" by default)
 #
-# It is assumed that log files are named <number>.log (e.g. "15.log"). Corresponding result
-# data files will be named <number>.txt.
+# It is assumed that log files are named <number>.log (e.g. "15.log").
+# Corresponding result data files will be named <number>.txt.
 parse_logs <- function(logdir = ".", destination = "data") {
     logfiles <- dir(logdir, "^[[:digit:]]+.log$")
     if (!file.exists(destination))
