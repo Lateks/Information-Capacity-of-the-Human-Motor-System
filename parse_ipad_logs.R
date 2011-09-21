@@ -10,13 +10,11 @@
 # which is the directory containing the logs and destination which is the
 # directory the results will be written to.
 #
-# Note that parsing ipad logs reliably is practically impossible in
-# some cases due to the lack of identifiers on touch points. Therefore
-# the results should always be checked and if necessary, corrected by
-# hand. (You can also change the guess_correct_features function slightly
-# to look at Y coordinates instead of X coordinates if they seem like
-# better indicators in your data. Brief instructions included in the function
-# comments.)
+# Note that parsing ipad logs reliably is difficult in some cases due
+# to the lack of identifiers on touch points (probably e.g. very fast
+# movements). Therefore the results should be checked and if
+# necessary, corrected by hand. (Also, bugs may and probably do remain
+# in the code.)
 #
 # Also note that parsing for more than two simultaneous touch points is
 # not implemented in the current version due to lack of test data. (Feel
@@ -26,7 +24,7 @@
 # TL;DR:
 # Usage: parse_logs() or
 # parse_logs("ipad_logfile_directory", "result_directory")
-# Check results before further use.
+# Check results before further use just in case.
 # Does not work with data that has more than two simultaneous touch
 # points. Support for more touch points should be implemented.
 # ======
@@ -124,16 +122,13 @@ guess_correct_features <- function(curr, other1, other2 = NULL) {
     dist_to_otherx1 <- abs(veclist[[curr]][[2]] - veclist[[other1]][[2]])
     dist_to_otherx2 <- abs(veclist[[curr]][[2]] - veclist[[other2]][[4]])
 
-    # Y coordinates could be used instead of X coordinates if they produce
-    # better results in some circumstances. Remember to change the if
-    # statement below.
-    #dist_to_othery1 <- abs(veclist[[curr]][[3]] - veclist[[other1]][[3]])
-    #dist_to_othery2 <- abs(veclist[[curr]][[3]] - veclist[[other2]][[5]])
+    dist_to_othery1 <- abs(veclist[[curr]][[3]] - veclist[[other1]][[3]])
+    dist_to_othery2 <- abs(veclist[[curr]][[3]] - veclist[[other2]][[5]])
     
-    # Choose the X feature with values closest to the values on the current
-    # row. A word of caution: this might not work so wellwith very fast
-    # touch point movements.
-    if (dist_to_otherx1 < dist_to_otherx2) {
+    # Choose the X and Y feature pair with the shortest Euclidean distance
+    # to the current value pair.
+    if (sqrt(dist_to_otherx1**2 + dist_to_othery1**2) <
+        sqrt(dist_to_otherx2**2 + dist_to_othery2**2)) {
         return(c(veclist[[curr]], missing_val))
     } else
         return(c(veclist[[curr]][1], missing_val, veclist[[curr]][2:3]))
@@ -152,7 +147,7 @@ fill_in_empty_values <- function(max_tps) {
         prev1 <- find_prev(j, 2)
         prev2 <- find_prev(j, 4)
 
-        if (prev1 == 0) { # missing values are at the beginning of the file
+        if (prev1 == 0 || prev2 == 0) { # missing values are at the beginning of the file
             # need to find the next full row to find out which features the existing
             # values (and missing ones) belong to
             next_max_row <- find_next(max_tps, j)
