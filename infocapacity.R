@@ -62,10 +62,10 @@ evalSC <- function(v, r, war = FALSE) {
 
         # Rissanen's classic two-part MDL code-length (feel free
         # to replace by more advanced universal code).
-		MDL <-  n/2*log(twopie*rss/n) + k/2*log(n);
-
-		featCL[i] <- MDL;
-	   	totCL <- totCL + MDL;    
+        MDL <-  n/2*log(twopie*rss/n) + k/2*log(n);
+        
+        featCL[i] <- MDL;
+        totCL <- totCL + MDL;    
 	}
     return(list(totCL=totCL, featCL=featCL, rss=rss));
 }
@@ -119,12 +119,14 @@ SI <- function(a,b) {
 # Complexity of a single (multivariate) sequence
 SC <- function(a, war=FALSE) {
     n <- nrow(a)-2;
-    if (n < 1) return(list(n = 0,k = 1,cl = 0,rate = 0));
-	SC <- evalSC(cbind(a[1:n,],a[1:n+1,]), a[1:n+2,], war=war);
-	cl <- SC$totCL;
-	fcl <- SC$featCL;
+    if (n < 1)
+        return(list(n = 0,k = 1,cl = 0,rate = 0));
+    
+    SC <- evalSC(cbind(a[1:n,],a[1:n+1,]), a[1:n+2,], war=war);
+    cl <- SC$totCL;
+    fcl <- SC$featCL;
     rss <- SC$rss;
-	return(list(n=n, cl=cl, rate=cl/n, fcl=fcl, rss=rss));
+    return(list(n=n, cl=cl, rate=cl/n, fcl=fcl, rss=rss));
 }
 
 # Complexity of a (multivariate) sequence given another
@@ -161,12 +163,12 @@ normalize_features <- function(a) {
 
 # Add noise on the features of a matrix.           
 add_noise <- function(a, x) {
-	nfeat <- ncol(a);
-	for (k in 1:nfeat) {
-    	feat_var <- var(a[,k]);
-    	a[,k] <- a[,k] + x * feat_var * rnorm(nrow(a));
-	}
-	return(a);
+    nfeat <- ncol(a);
+    for (k in 1:nfeat) {
+        feat_var <- var(a[,k]);
+        a[,k] <- a[,k] + x * feat_var * rnorm(nrow(a));
+    }
+    return(a);
 }
 
 # Calculate throughput for a given pair of matrices.
@@ -228,13 +230,17 @@ TPpair <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE, re
     }
 
     datams <- remove_duplicate_frames(a, b);
-    a <- normalize_features(datams[[1]]);
-    b <- normalize_features(datams[[2]]);
+    a <- datams[[1]];
+    b <- datams[[2]];
 
-	if (noise > 0) {
-		a <- add_noise(a, noise);
-		b <- add_noise(b, noise);
-	}
+    if (noise > 0) {
+        a <- add_noise(a, noise);
+        b <- add_noise(b, noise);
+    }
+
+    a <- normalize_features(a);
+    b <- normalize_features(b);
+
 
     return(throughput(a, b, fps = fps, pca = pca, res = res, ftp = ftp, war = war));
 }
@@ -256,23 +262,23 @@ TPpair <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE, re
 #         <seq1 #>_ali_<seq2 #>.txt
 # Example: "14_ali_15.txt".
 TPdir <- function(fps = 120, pca = FALSE, amc = FALSE, res = FALSE, ftp = FALSE, war = FALSE, noise = 0) {
-    if (amc) { # count amc files
+    if (amc) {
         files <- dir(".", "^[[:digit:]]+.amc");
-    } else # count coordinate data files
-    files <- dir(".", "^[[:digit:]]+.txt");
+    } else
+        files <- dir(".", "^[[:digit:]]+.txt");
     seqs <- length(files);
-	
-	# 2-column array for total TPs
-	M <- array(0, c(seqs/2, 2));
-	# 2-column array for feature-TPs for each sequence
-	F <- array(list(NULL), c(seqs/2, 2));
+    
+    # 2-column array for total TPs
+    M <- array(0, c(seqs/2, 2));
+    # 2-column array for feature-TPs for each sequence
+    F <- array(list(NULL), c(seqs/2, 2));
 	
     ## matrix for total TPs
     #M <- matrix(0, seqs, seqs);
     ## array for feature-TPs for each sequence
-	#F <- array(list(NULL), c(seqs, seqs));
-	
-	# made a little change to the original code to present the return values prettier
+    #F <- array(list(NULL), c(seqs, seqs));
+    
+    # made a little change to the original code to present the return values in a prettier format
     for (i in 1:(seqs/2)) {
         j = 2*i;
         k = j-1;
@@ -285,9 +291,9 @@ TPdir <- function(fps = 120, pca = FALSE, amc = FALSE, res = FALSE, ftp = FALSE,
             F[i,2] <- list(TPpair(file2, file1, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war, noise = noise)$featTP);
         }
     }
-	if (ftp) {
-		return(list(M=M, F=F));
-	} else {
-		return(M=M);
-	}
+    if (ftp) {
+        return(list(M=M, F=F));
+    } else {
+        return(M=M);
+    }
 }
