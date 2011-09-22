@@ -24,9 +24,9 @@ twopie = 2*pi*exp(1);
 
 # Return stochastic complexity of sequence r with side information v
 evalSC <- function(v, r, war = FALSE) {
-    n <- nrow(r);           # number of features
-    featCL <- array(0,ncol(r)); # array of feature code-lengths
-    totCL <- 0;             # total code-length over all features
+    n <- nrow(r); # number of frames
+    feature_code_length <- array(0,ncol(r));
+    total_code_length <- 0;
     for (i in 1:ncol(r)) {
         # extract regressors depending on the input size
         if (ncol(v) == ncol(r)) {
@@ -50,13 +50,11 @@ evalSC <- function(v, r, war = FALSE) {
             k = 6;
         }
 
-        # b <- qr.coef(Aplus, r[,i]);      # least squares fit
-        res <- qr.resid(Aplus, r[, i]);  # residuals
+        res <- qr.resid(Aplus, r[, i]);
         
         # warning about possibly too low variance
-        if (war) {
+        if (war)
             if (sum(res^2) < .01) print(c(i,sum(res^2)))
-        }
 
         rss <- sum(res^2)
 
@@ -64,10 +62,10 @@ evalSC <- function(v, r, war = FALSE) {
         # to replace by more advanced universal code).
         MDL <-  n/2*log(twopie*rss/n) + k/2*log(n);
         
-        featCL[i] <- MDL;
-        totCL <- totCL + MDL;    
-	}
-    return(list(totCL=totCL, featCL=featCL, rss=rss));
+        feature_code_length[i] <- MDL;
+        total_code_length <- total_code_length + MDL;
+    }
+    return(list(totCL=total_code_length, featCL=feature_code_length, rss=rss));
 }
 
 # Return residuals from AR(2) as a list where each element is the
@@ -92,10 +90,10 @@ evalR <- function(v,r) {
 
 # Shared information of sequences a and b using complexity
 # defined by residuals
-SI <- function(a,b) {
+shared_information <- function(a,b) {
     n <- min(nrow(a), nrow(b))-2;
-    totSIa <- 0;
-    fSIa <- array(0,ncol(a));
+    total_shared <- 0;
+    feature_shared <- array(0,ncol(a));
     
     resa <- evalR(cbind(a[1:n,],a[1:n+1,]), a[1:n+2,]);
     resb <- evalR(cbind(b[1:n,],b[1:n+1,]), b[1:n+2,]);
@@ -107,13 +105,13 @@ SI <- function(a,b) {
         rssa <- sum(resa[[i]]^2);
         rssaf <- sum(resaf^2);
         
-        SIa <- (n/2*log(rssa/rssaf) - log(n)/2);
+        shared_information <- (n/2*log(rssa/rssaf) - log(n)/2);
         
-        fSIa[i] <- SIa;
-        totSIa <- totSIa + SIa;
+        feature_shared[i] <- shared_information;
+        total_shared <- total_shared + shared_information;
     }
 
-    return(list(n=n, SIa=totSIa, fSIa=fSIa));
+    return(list(n=n, total_shared=total_shared, feature_shared=feature_shared));
 }
 
 # Complexity of a single (multivariate) sequence
@@ -176,45 +174,48 @@ throughput <- function(a, b, fps = 120, pca = FALSE, res = FALSE, ftp = FALSE, w
     lena <- nrow(a);
 
     if (pca) {
-        pcs <- prcomp(a, retx = TRUE, center = TRUE, scale. = TRUE);
+        principal_components <- prcomp(a, retx = TRUE, center = TRUE, scale. = TRUE);
 
         sum <- 0;
-        evecs <- 0;
-        threshold <- 0.9*sum(pcs$sdev**2);
-        for (k in 1:length(pcs$sdev)) {
-            sum <- sum + pcs$sdev[k]**2;
-            evecs <- k;
+        number_of_eigenvectors <- 0;
+        threshold <- 0.9*sum(principal_components$sdev**2);
+        for (k in 1:length(principal_components$sdev)) {
+            sum <- sum + principal_components$sdev[k]**2;
+            number_of_eigenvectors <- k;
             if (sum >= threshold)
                 break;
         }
-        eigenvec <- pcs$rotation[,1:evecs];
-        a <- a %*% eigenvec;
-        b <- b %*% eigenvec;
+        eigenvectors <- pcs$rotation[,1:number_of_eigenvectors];
+        a <- a %*% eigenvectors;
+        b <- b %*% eigenvectors;
     }
     
-    # Return shared information determined by residuals
-    if (res) {
-        tp <- SI(a, b)$SIa/lena*120/log(2.0);
-        featTP <- SI(a, b)$fSIa/lena*120/log(2.0);
-        return(list(tp=tp, featTP=featTP));
+    if (res) { # Return shared information determined by residuals
+        shared_information <- shared_information(a, b);
+        throughput <- shared_information$total_shared/lena*120/log(2.0);
+        feature_throughput <- shared_information$feature_shared/lena*120/log(2.0);
+        return(list(tp=throughput, featTP=feature_throughput));
     }
 
-    # compute stochastic complexity with and without condition
-    ca <- SC(a, war)$cl;
-    cab <- SCcond(a, b, war)$cl;
+    SC_a <- SC(a, war);
+    SC_a_b <- SCcond(a, b, war);
+    complexity_of_a <- SC_a$cl;
+    feature_complexity_of_a <- SC_a$fcl;
+    complexity_of_a_cond_b <- SC_a_b$cl;
+    feature_complexity_of_a_cond_b <- SC_a_b$cl;
 
-    # calculate throughput
-    tp <- (ca - cab)/lena*fps/log(2.0);
+    throughput <- (complexity_of_a - complexity_of_a_cond_b)/lena*fps/log(2.0);
     
-    # calculate feature TPs
-    featureTP <- array(0,ncol(a));
     if (ftp) {
+        feature_throughputs <- array(0,ncol(a));
         for (k in 1:ncol(a)) {
-            featureTP[k] <- (SC(a)$fcl[k] - SCcond(a,b)$fcl[k])/lena*120/log(2.0);
+            feature_throughputs[k] <- (feature_complexity_of_a[k] -
+                feature_complexity_of_a_cond_b[k])/lena*120/log(2.0);
         }
+        return(list(tp=throughput, featTP = feature_throughputs));
     }
 
-    return(list(tp=tp, featTP = featureTP));
+    return(list(tp=throughput));
 }
 
 # Calculate throughput for a given pair of files.
@@ -266,34 +267,26 @@ TPdir <- function(fps = 120, pca = FALSE, amc = FALSE, res = FALSE, ftp = FALSE,
         files <- dir(".", "^[[:digit:]]+.amc");
     } else
         files <- dir(".", "^[[:digit:]]+.txt");
-    seqs <- length(files);
+    sequences <- length(files);
     
-    # 2-column array for total TPs
-    M <- array(0, c(seqs/2, 2));
-    # 2-column array for feature-TPs for each sequence
-    F <- array(list(NULL), c(seqs/2, 2));
+    total_throughputs <- array(0, c(sequences/2, 2));
+    feature_throughputs <- array(list(NULL), c(sequences/2, 2));
 	
-    ## matrix for total TPs
-    #M <- matrix(0, seqs, seqs);
-    ## array for feature-TPs for each sequence
-    #F <- array(list(NULL), c(seqs, seqs));
-    
-    # made a little change to the original code to present the return values in a prettier format
-    for (i in 1:(seqs/2)) {
+    for (i in 1:(sequences/2)) {
         j = 2*i;
         k = j-1;
-        file1 <- sprintf("aligneddata/data_%d_ali_%d.txt", k, j);
-        file2 <- sprintf("aligneddata/data_%d_ali_%d.txt", j, k);
-        M[i,1] <- TPpair(file1, file2, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war, noise = noise)$tp;
-        M[i,2] <- TPpair(file2, file1, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war, noise = noise)$tp;
+        file1 <- sprintf("aligneddata/%d_ali_%d.txt", k, j);
+        file2 <- sprintf("aligneddata/%d_ali_%d.txt", j, k);
+        total_throughputs[i,1] <- TPpair(file1, file2, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war, noise = noise)$tp;
+        total_throughputs[i,2] <- TPpair(file2, file1, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war, noise = noise)$tp;
         if (ftp) {
-            F[i,1] <- list(TPpair(file1, file2, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war, noise = noise)$featTP);
-            F[i,2] <- list(TPpair(file2, file1, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war, noise = noise)$featTP);
+            feature_throughputs[i,1] <- list(TPpair(file1, file2, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war, noise = noise)$featTP);
+            feature_throughputs[i,2] <- list(TPpair(file2, file1, fps = fps, pca = pca, amc = amc, res = res, ftp = ftp, war = war, noise = noise)$featTP);
         }
     }
     if (ftp) {
-        return(list(M=M, F=F));
+        return(list(total=total_throughputs, feature=feature_throughputs));
     } else {
-        return(M=M);
+        return(list(total=total_throughputs));
     }
 }
