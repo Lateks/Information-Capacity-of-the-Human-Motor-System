@@ -10,8 +10,12 @@
 #
 # Current version:
 # Modified for more general use and added PCA functionality
-# by Laura Leppänen (research assistant), Sep 9, 2011
+# by Laura Leppänen (research assistant), September 2011
 # laura.leppanen (at) cs.helsinki.fi
+#
+# New method of calculating throughput using residuals of residuals
+# added by Arttu Modig (research assistant), September 2011
+# arttu.modig (at) aalto.fi
 #
 # Data needs to be aligned temporally before being evaluated
 # for information capacity. To align, we recommend Canonical
@@ -80,14 +84,11 @@ residuals <- function(v,r) {
     residuals = list()
     # extract regressors depending on the input size
     for (i in 1:ncol(r)) {
-        if (ncol(v) == ncol(r)) {
+        if (ncol(v) == ncol(r))
             Aplus <- qr(cbind(matrix(1,frames,1), v[, i]))
-            k <- 3
-        }
-        if (ncol(v) == 2 * ncol(r)) {
+        if (ncol(v) == 2 * ncol(r))
             Aplus <- qr(cbind(matrix(1,frames,1), v[, i], v[, ncol(r)+i]))
-            k <- 4
-        }
+
         residuals[[i]] <- qr.resid(Aplus, r[, i])  
     }
     return(residuals)
@@ -164,13 +165,76 @@ normalize_features <- function(a) {
 }
 
 # Add noise to the features of a matrix.    
-add_noise_to_features <- function(a, x) {
+add_noise_to_features <- function(a, noise_coeff) {
     features <- ncol(a)
     for (k in 1:features) {
         feature_var <- var(a[,k])
-        a[,k] <- a[,k] + x * feature_var * rnorm(nrow(a))
+        a[,k] <- a[,k] + noise_coeff * feature_var * rnorm(nrow(a))
     }
     return(a)
+}
+
+# Returns a matrix containing the chosen most significant eigenvectors
+pca <- function(data) {
+    principal_components <- prcomp(data, retx = TRUE, center = TRUE, scale. = TRUE)
+
+    sum <- 0
+    eigenvectors <- 0
+    threshold <- 0.9*sum(principal_components$sdev**2)
+    for (k in 1:length(principal_components$sdev)) {
+        sum <- sum + principal_components$sdev[k]**2
+        eigenvectors <- k
+        if (sum >= threshold)
+            break
+    }
+
+    eigenvectors <- principal_components$rotation[,1:eigenvectors]
+
+    return(eigenvectors)
+}
+
+# Returns throughput determined by residuals of residuals.
+residual_throughput <- function(a, b, fps = 120, features = FALSE) {
+    lena <- nrow(a)
+
+    shared_information <- shared_information_by_residuals(a, b)
+    throughput <- shared_information$total_shared/lena * fps/log(2.0)
+
+    if (features) {
+        feature_throughputs <- shared_information$feature_shared/lena * fps/log(2.0)
+        return(list(throughput = throughput,
+            feature_throughputs = feature_throughputs))
+    }
+
+    return(list(throughput = throughput))
+}
+
+# Returns throughput calculated in the manner described in the original
+# arxiv paper draft.
+original_throughput <- function(a, b, fps = 120, features = FALSE) {
+    lena <- nrow(a)
+    SC_a <- SC(a)
+    SC_a_b <- SCcond(a, b)
+
+    complexity_of_a <- SC_a$complexity
+    feature_complexity_of_a <- SC_a$feature_complexity
+
+    complexity_of_a_cond_b <- SC_a_b$complexity
+    feature_complexity_of_a_cond_b <- SC_a_b$feature_complexity
+
+    throughput <- (complexity_of_a - complexity_of_a_cond_b)/lena*fps/log(2.0)
+    
+    if (features) {
+        feature_throughputs <- array(0,ncol(a))
+        for (k in 1:ncol(a))
+            feature_throughputs[k] <- (feature_complexity_of_a[k] -
+                feature_complexity_of_a_cond_b[k])/lena*120/log(2.0)
+
+        return(list(throughput = throughput,
+            feature_throughputs = feature_throughputs))
+    }
+
+    return(list(throughput = throughput))
 }
 
 # Calculate throughput for a given pair of matrices.
@@ -180,50 +244,15 @@ throughput <- function(a, b, fps = 120, pca = FALSE, residuals = FALSE,
     lena <- nrow(a)
 
     if (pca) {
-        principal_components <- prcomp(a, retx = TRUE, center = TRUE, scale. = TRUE)
-
-        sum <- 0
-        eigenvectors <- 0
-        threshold <- 0.9*sum(principal_components$sdev**2)
-        for (k in 1:length(principal_components$sdev)) {
-            sum <- sum + principal_components$sdev[k]**2
-            eigenvectors <- k
-            if (sum >= threshold)
-                break
-        }
-        eigenvectors <- pcs$rotation[,1:eigenvectors]
+        eigenvectors <- pca(a)
         a <- a %*% eigenvectors
         b <- b %*% eigenvectors
     }
     
-    if (residuals) {
-        shared_information <- shared_information_by_residuals(a, b)
-        throughput <- shared_information$total_shared/lena*120/log(2.0)
-        feature_throughputs <- shared_information$feature_shared/lena*120/log(2.0)
-        return(list(throughput = throughput,
-            feature_throughputs = feature_throughputs))
-    }
+    if (residuals)
+        return(residual_throughput(a, b, fps = fps, features = features))
 
-    SC_a <- SC(a)
-    SC_a_b <- SCcond(a, b)
-    complexity_of_a <- SC_a$complexity
-    feature_complexity_of_a <- SC_a$feature_complexity
-    complexity_of_a_cond_b <- SC_a_b$complexity
-    feature_complexity_of_a_cond_b <- SC_a_b$feature_complexity
-
-    throughput <- (complexity_of_a - complexity_of_a_cond_b)/lena*fps/log(2.0)
-    
-    if (features) {
-        feature_throughputs <- array(0,ncol(a))
-        for (k in 1:ncol(a)) {
-            feature_throughputs[k] <- (feature_complexity_of_a[k] -
-                feature_complexity_of_a_cond_b[k])/lena*120/log(2.0)
-        }
-        return(list(throughput = throughput,
-            feature_throughputs = feature_throughputs))
-    }
-
-    return(list(throughput = throughput))
+    return(original_throughput(a, b, fps = fps , features = features))
 }
 
 # Calculate throughput for a given pair of files.
