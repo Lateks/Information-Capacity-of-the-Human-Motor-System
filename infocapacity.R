@@ -228,7 +228,7 @@ original_throughput <- function(a, b, fps = 120, features = FALSE) {
         feature_throughputs <- array(0,ncol(a))
         for (k in 1:ncol(a))
             feature_throughputs[k] <- (feature_complexity_of_a[k] -
-                feature_complexity_of_a_cond_b[k])/lena*120/log(2.0)
+                feature_complexity_of_a_cond_b[k])/lena*fps/log(2.0)
 
         return(list(throughput = throughput,
             feature_throughputs = feature_throughputs))
@@ -310,21 +310,21 @@ pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
 # - residuals   use residuals to determine complexities
 # - features    also calculate throughput for individual features
 # - warnings    print warnings of low residual variance (to debug NaN results)
-# - noise       ???
+# - noise       noise coefficient (default 0)
 dir_throughput <- function(fps = 120, pca = FALSE, amc = FALSE, residuals = FALSE,
     features = FALSE, warnings = FALSE, noise = 0) {
 
     if (amc) {
-        files <- dir(".", "^[[:digit:]]+.amc")
+        files <- dir(".", "^[[:digit:]]+.amc$")
     } else
-        files <- dir(".", "^[[:digit:]]+.txt")
+        files <- dir(".", "^[[:digit:]]+.txt$")
     sequences <- length(files)
     
     total_throughputs <- array(0, c(sequences/2, 2))
     feature_throughputs <- array(list(NULL), c(sequences/2, 2))
 	
     for (i in 1:(sequences/2)) {
-        j = 2*i - 1
+        j = 2 * i - 1
         k = j + 1
         file1 <- sprintf("aligneddata/%d_ali_%d.txt", j, k)
         file2 <- sprintf("aligneddata/%d_ali_%d.txt", k, j)
