@@ -168,8 +168,8 @@ normalize_features <- function(a) {
 add_noise_to_features <- function(a, noise_coeff) {
     features <- ncol(a)
     for (k in 1:features) {
-        feature_var <- var(a[,k])
-        a[,k] <- a[,k] + noise_coeff * feature_var * rnorm(nrow(a))
+        feature_sdev <- sqrt(var(a[,k]))
+        a[,k] <- a[,k] + noise_coeff * feature_sdev * rnorm(nrow(a))
     }
     return(a)
 }
