@@ -94,13 +94,13 @@ residuals <- function(v,r) {
     return(residuals)
 }
 
-shared_information_by_residuals <- function(a,b) {
-    n <- min(nrow(a), nrow(b))-2
+shared_information_by_residuals <- function(a,b,index) {
+    n <- min(nrow(a), nrow(b))-index
     total_shared <- 0
     feature_shared <- array(0,ncol(a))
     
-    resa <- residuals(cbind(a[1:n,],a[1:n+1,]), a[1:n+2,])
-    resb <- residuals(cbind(b[1:n,],b[1:n+1,]), b[1:n+2,])
+    resa <- residuals(cbind(a[1:n,],a[1:n+index-1,]), a[1:n+index,])
+    resb <- residuals(cbind(b[1:n,],b[1:n+index-1,]), b[1:n+index,])
 
     for (i in 1:length(resa)) {
         lm.ra = lm(resa[[i]] ~ resb[[i]])
@@ -144,12 +144,17 @@ SCcond <- function(a,b) {
 }
 
 # Removes duplicated rows from both sequences.
-remove_duplicate_frames <- function(a, b) {
+remove_duplicate_frames <- function(a, b, method) {
     skipa <- matrix(FALSE, nrow(a))
     skipa <- rowSums((a[2:nrow(a),]-a[1:(nrow(a)-1),])^2) < 0.001
-    skipb <- matrix(FALSE, nrow(b))
-    skipb <- rowSums((b[2:nrow(b),]-b[1:(nrow(b)-1),])^2) < 0.001
-    skip <- skipa | skipb
+    if (method == 2) {
+        skipb <- matrix(FALSE, nrow(b))
+        skipb <- rowSums((b[2:nrow(b),]-b[1:(nrow(b)-1),])^2) < 0.001
+        skip <- skipa | skipb
+    }
+    if (method == 1) {
+        skip <- skipa
+    }
     a <- a[!skip,]
     b <- b[!skip,]
 
@@ -194,10 +199,10 @@ pca <- function(data) {
 }
 
 # Returns throughput determined by residuals of residuals.
-residual_throughput <- function(a, b, fps = 120, features = FALSE) {
+residual_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
     lena <- nrow(a)
 
-    shared_information <- shared_information_by_residuals(a, b)
+    shared_information <- shared_information_by_residuals(a, b, index)
     throughput <- shared_information$total_shared/lena * fps/log(2.0)
 
     if (features) {
@@ -239,7 +244,7 @@ original_throughput <- function(a, b, fps = 120, features = FALSE) {
 
 # Calculate throughput for a given pair of matrices.
 throughput <- function(a, b, fps = 120, pca = FALSE, residuals = FALSE,
-    features = FALSE) {
+    features = FALSE, index = 2) {
 
     lena <- nrow(a)
 
@@ -250,7 +255,7 @@ throughput <- function(a, b, fps = 120, pca = FALSE, residuals = FALSE,
     }
     
     if (residuals)
-        return(residual_throughput(a, b, fps = fps, features = features))
+        return(residual_throughput(a, b, fps = fps, features = features, index = index))
 
     return(original_throughput(a, b, fps = fps , features = features))
 }
@@ -260,7 +265,7 @@ throughput <- function(a, b, fps = 120, pca = FALSE, residuals = FALSE,
 # See the dir_throughput function for descriptions of optional parameters.
 pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
     amc = FALSE, residuals = FALSE, features = FALSE, warnings = FALSE,
-    noise = 0) {
+    noise = 0, index = 2, method = 1) {
     
     use_warnings <<- warnings
 
@@ -274,7 +279,7 @@ pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
         b$V34=NULL; b$V46=NULL;
     }
 
-    data <- remove_duplicate_frames(a, b)
+    data <- remove_duplicate_frames(a, b, method)
     a <- data[[1]]
     b <- data[[2]]
 
@@ -288,7 +293,7 @@ pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
 
     use_warnings <<- FALSE
     return(throughput(a, b, fps = fps, pca = pca, residuals = residuals,
-        features = features))
+        features = features, index = index))
 }
 
 # Calculate throughput for all aligned sequence pairs in the directory (by
@@ -304,15 +309,17 @@ pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
 # Example: "14_ali_15.txt".
 #
 # Parameters:
-# - fps         frames per second
-# - pca         use principal components analysis
-# - amc         input data is in AMC format
-# - residuals   use residuals to determine complexities
-# - features    also calculate throughput for individual features
-# - warnings    print warnings of low residual variance (to debug NaN results)
-# - noise       noise coefficient (default 0)
+# - fps        frames per second
+# - pca        use principal components analysis
+# - amc        input data is in AMC format
+# - residuals  use residuals to determine complexities
+# - features   also calculate throughput for individual features
+# - warnings   print warnings of low residual variance (to debug NaN results)
+# - noise      noise coefficient (default 0)
+# - index      the index to customize AR(2) of "residual of residuals" method
+# - method     the method to remove duplicates (default 1)
 dir_throughput <- function(fps = 120, pca = FALSE, amc = FALSE, residuals = FALSE,
-    features = FALSE, warnings = FALSE, noise = 0) {
+    features = FALSE, warnings = FALSE, noise = 0, index = 2, method = 1) {
 
     if (amc) {
         files <- dir(".", "^[[:digit:]]+.amc$")
@@ -331,10 +338,10 @@ dir_throughput <- function(fps = 120, pca = FALSE, amc = FALSE, residuals = FALS
 
         results <- pair_throughput(file1, file2, fps = fps, pca = pca,
             amc = amc, res = residuals, features = features, warnings = warnings,
-            noise = noise)
+            noise = noise, index = index, method = method)
         inverse_results <- pair_throughput(file2, file1, fps = fps, pca = pca,
             amc = amc, res = residuals, features = features, warnings = warnings,
-            noise = noise)
+            noise = noise, index = index, method = method)
 
         total_throughputs[i,1] <- results$throughput
         total_throughputs[i,2] <- inverse_results$throughput
