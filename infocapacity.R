@@ -45,20 +45,20 @@ evalSC <- function(v, r) {
             k = 4
         }
         if (ncol(v) == 3 * ncol(r)) {
-            Aplus <- qr(cbind(matrix(1,frames,1), v[, i], v[, ncol(r)+i], 
+            Aplus <- qr(cbind(matrix(1,frames,1), v[, i], v[, ncol(r)+i],
                         v[, 2*ncol(r)+i]))
             k = 5
         }
         if (ncol(v) == 4 * ncol(r))
         {
-            Aplus <- qr(cbind(matrix(1,n,1), v[, i], v[, ncol(r)+i], 
+            Aplus <- qr(cbind(matrix(1,n,1), v[, i], v[, ncol(r)+i],
                         v[, 2*ncol(r)+i],
                         v[, 3*ncol(r)+i]))
             k = 6
         }
 
         res <- qr.resid(Aplus, r[, i])
-        
+
         # warning about possibly too low variance
         if (use_warnings)
             if (sum(res^2) < .01) print(c(i,sum(res^2)))
@@ -69,7 +69,7 @@ evalSC <- function(v, r) {
         # Rissanen's classic two-part MDL code-length (feel free
         # to replace by more advanced universal code).
         MDL <-  frames/2*log(twopie*residual_sum/frames) + k/2*log(frames)
-        
+
         feature_code_length[i] <- MDL
         total_code_length <- total_code_length + MDL
     }
@@ -98,7 +98,7 @@ shared_information_by_residuals <- function(a,b,index) {
     n <- min(nrow(a), nrow(b))-index
     total_shared <- 0
     feature_shared <- array(0,ncol(a))
-    
+
     resa <- residuals(cbind(a[1:n,],a[1:n+index-1,]), a[1:n+index,])
     resb <- residuals(cbind(b[1:n,],b[1:n+index-1,]), b[1:n+index,])
 
@@ -108,9 +108,9 @@ shared_information_by_residuals <- function(a,b,index) {
 
         rssa <- sum(resa[[i]]^2)
         rssaf <- sum(resaf^2)
-        
+
         shared_information <- (n/2*log(rssa/rssaf) - log(n)/2)
-        
+
         feature_shared[i] <- shared_information
         total_shared <- total_shared + shared_information
     }
@@ -123,7 +123,7 @@ SC <- function(a) {
     n <- nrow(a)-2
     if (n < 1)
         return(list(n = 0,k = 1,cl = 0,rate = 0))
-    
+
     SC <- evalSC(cbind(a[1:n,],a[1:n+1,]), a[1:n+2,])
     complexity <- SC$total
     feature_complexity <- SC$feature
@@ -152,9 +152,9 @@ remove_duplicate_frames <- function(a, b, method) {
         skipb <- rowSums((b[2:nrow(b),]-b[1:(nrow(b)-1),])^2) < 0.001
         skip <- skipa | skipb
     }
-    if (method == 1) {
+    if (method == 1)
         skip <- skipa
-    }
+
     a <- a[!skip,]
     b <- b[!skip,]
 
@@ -169,7 +169,7 @@ normalize_features <- function(a) {
     return(a)
 }
 
-# Add noise to the features of a matrix.    
+# Add noise to the features of a matrix.
 add_noise_to_features <- function(a, noise_coeff) {
     features <- ncol(a)
     for (k in 1:features) {
@@ -228,7 +228,7 @@ original_throughput <- function(a, b, fps = 120, features = FALSE) {
     feature_complexity_of_a_cond_b <- SC_a_b$feature_complexity
 
     throughput <- (complexity_of_a - complexity_of_a_cond_b)/lena*fps/log(2.0)
-    
+
     if (features) {
         feature_throughputs <- array(0,ncol(a))
         for (k in 1:ncol(a))
@@ -253,7 +253,7 @@ throughput <- function(a, b, fps = 120, pca = FALSE, residuals = FALSE,
         a <- a %*% eigenvectors
         b <- b %*% eigenvectors
     }
-    
+
     if (residuals)
         return(residual_throughput(a, b, fps = fps, features = features, index = index))
 
@@ -266,7 +266,7 @@ throughput <- function(a, b, fps = 120, pca = FALSE, residuals = FALSE,
 pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
     amc = FALSE, residuals = FALSE, features = FALSE, warnings = FALSE,
     noise = 0, index = 2, method = 1) {
-    
+
     use_warnings <<- warnings
 
     a <- read.table(filename1)
@@ -283,10 +283,8 @@ pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
     a <- data[[1]]
     b <- data[[2]]
 
-    if (noise > 0) {
+    if (noise > 0)
         a <- add_noise_to_features(a, noise)
-        b <- add_noise_to_features(b, noise)
-    }
 
     a <- normalize_features(a)
     b <- normalize_features(b)
@@ -326,10 +324,10 @@ dir_throughput <- function(fps = 120, pca = FALSE, amc = FALSE, residuals = FALS
     } else
         files <- dir(".", "^[[:digit:]]+.txt$")
     sequences <- length(files)
-    
+
     total_throughputs <- array(0, c(sequences/2, 2))
     feature_throughputs <- array(list(NULL), c(sequences/2, 2))
-	
+
     for (i in 1:(sequences/2)) {
         j = 2 * i - 1
         k = j + 1
@@ -351,7 +349,7 @@ dir_throughput <- function(fps = 120, pca = FALSE, amc = FALSE, residuals = FALS
             feature_throughputs[i,2] <- list(inverse_results$feature_throughputs)
         }
     }
-    
+
     if (features) {
         return(list(total = total_throughputs, feature = feature_throughputs))
     } else
