@@ -50,7 +50,7 @@ evaluate_SC <- function(sequence, side_information) {
             k = 5
         }
         if (ncol(sequence) == 4 * ncol(side_information)) {
-            Aplus <- qr(cbind(matrix(1,n,1), sequence[, i], sequence[, ncol(side_information)+i],
+            Aplus <- qr(cbind(matrix(1,frames,1), sequence[, i], sequence[, ncol(side_information)+i],
                         sequence[, 2*ncol(side_information)+i],
                         sequence[, 3*ncol(side_information)+i]))
             k = 6
@@ -88,7 +88,7 @@ evaluate_residuals <- function(v,r) {
         if (ncol(v) == 2 * ncol(r))
             Aplus <- qr(cbind(matrix(1,frames,1), v[, i], v[, ncol(r)+i]))
 
-        residuals[[i]] <- qr.resid(Aplus, r[, i])  
+        residuals[[i]] <- qr.resid(Aplus, r[, i])
     }
     return(residuals)
 }
@@ -211,7 +211,7 @@ residual_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
     SI <- shared_information_by_residuals(a, b, index)
     total_SI <- SI$total_shared
     throughput <- total_SI / lena * fps / log(2.0)
-    
+
     if (features) {
         feature_SI <- shared_information$feature_shared
         feature_throughputs <- feature_SI / lena * fps / log(2.0)
@@ -238,10 +238,10 @@ original_throughput <- function(a, b, fps = 120, features = FALSE) {
 
     complexity_of_a_cond_b <- SC_a_b$complexity
     feature_complexity_of_a_cond_b <- SC_a_b$feature_complexity
-    
+
     shared_information <- complexity_of_a - complexity_of_a_cond_b
     throughput <- shared_information / length_a * fps / log(2.0)
-    
+
     RSS_a <- sum(unlist(SC_a$residual_sums))
     RSS_a_cond_b <- sum(unlist(SC_a_b$residual_sums))
     quotient <- RSS_a / RSS_a_cond_b
@@ -325,23 +325,23 @@ pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
 evaluate_RSS <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE,
     residuals = TRUE, features = FALSE, warnings = FALSE, noise = 0, index = 2,
     method = 1, start_index = 2, end_index = 120, step_index = 1) {
-    
+
     results <- array(0, c(end_index, 4));
     colnames(results) <- c("RSS","RSS_conditional","RSS / RSS_cond","TP")
-    
+
     for (i in seq(start_index, end_index, step_index)) {
         print(i) # To see the proceeding
-        
+
         TP <- pair_throughput(filename1, filename2, fps = fps, pca = pca, amc = amc,
             residuals = residuals, features = features, warnings = warnings,
             noise = noise, index = index, method = method)
-            
+
         results[i,1] <- TP$RSS
         results[i,2] <- TP$RSS_residual
         results[i,3] <- TP$quotient
         results[i,4] <- TP$throughput
     }
-    
+
     return(results)
 }
     
