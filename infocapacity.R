@@ -28,36 +28,35 @@ options(width=Sys.getenv("COLUMNS"))
 use_warnings = FALSE
 twopie = 2*pi*exp(1)
 
-# Return stochastic complexity of sequence r with side information v
-evaluate_SC <- function(v, r) {
-    frames <- nrow(r)
-    feature_code_length <- array(0,ncol(r))
+# Return stochastic complexity of a sequence with the given side information
+evaluate_SC <- function(sequence, side_information) {
+    frames <- nrow(side_information)
+    feature_code_length <- array(0,ncol(side_information))
     total_code_length <- 0
     residual_sums = list()
-    for (i in 1:ncol(r)) {
+    for (i in 1:ncol(side_information)) {
         # extract regressors depending on the input size
-        if (ncol(v) == ncol(r)) {
-            Aplus <- qr(cbind(matrix(1,frames,1), v[, i]))
+        if (ncol(sequence) == ncol(side_information)) {
+            Aplus <- qr(cbind(matrix(1,frames,1), sequence[, i]))
             k = 3
         }
-        if (ncol(v) == 2 * ncol(r)) {
-            Aplus <- qr(cbind(matrix(1,frames,1), v[, i], v[, ncol(r)+i]))
+        if (ncol(sequence) == 2 * ncol(side_information)) {
+            Aplus <- qr(cbind(matrix(1,frames,1), sequence[, i], sequence[, ncol(side_information)+i]))
             k = 4
         }
-        if (ncol(v) == 3 * ncol(r)) {
-            Aplus <- qr(cbind(matrix(1,frames,1), v[, i], v[, ncol(r)+i],
-                        v[, 2*ncol(r)+i]))
+        if (ncol(sequence) == 3 * ncol(side_information)) {
+            Aplus <- qr(cbind(matrix(1,frames,1), sequence[, i], sequence[, ncol(side_information)+i],
+                        sequence[, 2*ncol(side_information)+i]))
             k = 5
         }
-        if (ncol(v) == 4 * ncol(r))
-        {
-            Aplus <- qr(cbind(matrix(1,n,1), v[, i], v[, ncol(r)+i],
-                        v[, 2*ncol(r)+i],
-                        v[, 3*ncol(r)+i]))
+        if (ncol(sequence) == 4 * ncol(side_information)) {
+            Aplus <- qr(cbind(matrix(1,n,1), sequence[, i], sequence[, ncol(side_information)+i],
+                        sequence[, 2*ncol(side_information)+i],
+                        sequence[, 3*ncol(side_information)+i]))
             k = 6
         }
 
-        res <- qr.resid(Aplus, r[, i])
+        res <- qr.resid(Aplus, side_information[, i])
 
         # warning about possibly too low variance
         if (use_warnings)
