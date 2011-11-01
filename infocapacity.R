@@ -28,35 +28,39 @@ options(width=Sys.getenv("COLUMNS"))
 use_warnings = FALSE
 twopie = 2*pi*exp(1)
 
-# Return stochastic complexity of a sequence with the given side information
-evaluate_SC <- function(sequence, side_information) {
-    frames <- nrow(side_information)
-    feature_code_length <- array(0,ncol(side_information))
+# Return stochastic complexity of the observed sequence given predictor features
+# (sometimes containing side information from another sequence, but usually only
+# shifted data from the same sequence). The number of columns in sequence_predictors
+# is always a multiple of the number of columns in observed_sequence because
+# the side information always contains all the same features.
+evaluate_SC <- function(sequence_predictors, observed_sequence) {
+    frames <- nrow(observed_sequence)
+    feature_code_length <- array(0,ncol(observed_sequence))
     total_code_length <- 0
     residual_sums = list()
-    for (i in 1:ncol(side_information)) {
+    for (i in 1:ncol(observed_sequence)) {
         # extract regressors depending on the input size
-        if (ncol(sequence) == ncol(side_information)) {
-            Aplus <- qr(cbind(matrix(1,frames,1), sequence[, i]))
+        if (ncol(sequence_predictors) == ncol(observed_sequence)) {
+            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i]))
             k = 3
         }
-        if (ncol(sequence) == 2 * ncol(side_information)) {
-            Aplus <- qr(cbind(matrix(1,frames,1), sequence[, i], sequence[, ncol(side_information)+i]))
+        if (ncol(sequence_predictors) == 2 * ncol(observed_sequence)) {
+            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i], sequence_predictors[, ncol(observed_sequence)+i]))
             k = 4
         }
-        if (ncol(sequence) == 3 * ncol(side_information)) {
-            Aplus <- qr(cbind(matrix(1,frames,1), sequence[, i], sequence[, ncol(side_information)+i],
-                        sequence[, 2*ncol(side_information)+i]))
+        if (ncol(sequence_predictors) == 3 * ncol(observed_sequence)) {
+            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i], sequence_predictors[, ncol(observed_sequence)+i],
+                        sequence_predictors[, 2*ncol(observed_sequence)+i]))
             k = 5
         }
-        if (ncol(sequence) == 4 * ncol(side_information)) {
-            Aplus <- qr(cbind(matrix(1,frames,1), sequence[, i], sequence[, ncol(side_information)+i],
-                        sequence[, 2*ncol(side_information)+i],
-                        sequence[, 3*ncol(side_information)+i]))
+        if (ncol(sequence_predictors) == 4 * ncol(observed_sequence)) {
+            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i], sequence_predictors[, ncol(observed_sequence)+i],
+                        sequence_predictors[, 2*ncol(observed_sequence)+i],
+                        sequence_predictors[, 3*ncol(observed_sequence)+i]))
             k = 6
         }
 
-        res <- qr.resid(Aplus, side_information[, i])
+        res <- qr.resid(predictors, observed_sequence[, i])
 
         # warning about possibly too low variance
         if (use_warnings)
@@ -76,25 +80,26 @@ evaluate_SC <- function(sequence, side_information) {
         residual_sums = residual_sums))
 }
 
-# Return residuals from AR(2) as a list where each element is the
-# residual vector for the corresponding feature
-evaluate_residuals <- function(v,r) {
-    frames <- nrow(r)
+# Return residuals from the AR(2) model as a list where each element is the
+# residual vector for the corresponding feature, given the observed sequence
+# and some predictor features (shifted data from the observed sequence).
+evaluate_residuals <- function(sequence_predictors, observed_sequence) {
+    frames <- nrow(observed_sequence)
     residuals = list()
     # extract regressors depending on the input size
-    for (i in 1:ncol(r)) {
-        if (ncol(v) == ncol(r))
-            Aplus <- qr(cbind(matrix(1,frames,1), v[, i]))
-        if (ncol(v) == 2 * ncol(r))
-            Aplus <- qr(cbind(matrix(1,frames,1), v[, i], v[, ncol(r)+i]))
+    for (i in 1:ncol(observed_sequence)) {
+        if (ncol(sequence_predictors) == ncol(observed_sequence))
+            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i]))
+        if (ncol(sequence_predictors) == 2 * ncol(observed_sequence))
+            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i], sequence_predictors[, ncol(observed_sequence)+i]))
 
-        residuals[[i]] <- qr.resid(Aplus, r[, i])
+        residuals[[i]] <- qr.resid(predictors, observed_sequence[, i])
     }
     return(residuals)
 }
 
 shared_information_by_residuals <- function(a,b,index) {
-    n <- min(nrow(a), nrow(b))-index
+    n <- nrow(a) - index
     total_shared <- 0
     feature_shared <- array(0,ncol(a))
     total_RSS <- 0
@@ -149,7 +154,8 @@ SCcond <- function(a,b) {
         feature_complexity = feature_complexity, residual_sums = residual_sums))
 }
 
-# Removes duplicated rows from both sequences.
+# Removes duplicated rows from both sequences a and b.
+# Returns the altered sequences as a list with two elements.
 remove_duplicate_frames <- function(a, b, method) {
     skipa <- matrix(FALSE, nrow(a))
     skipa <- rowSums((a[2:nrow(a),]-a[1:(nrow(a)-1),])^2) < 0.001
@@ -167,6 +173,8 @@ remove_duplicate_frames <- function(a, b, method) {
     return(list(a, b))
 }
 
+# Performs normalization on the features of sequence a.
+# Returns the altered sequence.
 normalize_features <- function(a) {
     a <- t(apply(a,1,'-',apply(a,2,mean)))
     a <- t(apply(a,1,'/',sqrt(apply(a,2,var))))
