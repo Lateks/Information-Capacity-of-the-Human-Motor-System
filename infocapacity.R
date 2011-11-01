@@ -154,17 +154,19 @@ SCcond <- function(a,b) {
         feature_complexity = feature_complexity, residual_sums = residual_sums))
 }
 
-# Removes duplicated rows from both sequences a and b.
+# Removes duplicated rows from both sequences a and b
+# either symmetrically or asymmetrically.
+#
 # Returns the altered sequences as a list with two elements.
-remove_duplicate_frames <- function(a, b, method) {
+remove_duplicate_frames <- function(a, b, symmetric = FALSE) {
     skipa <- matrix(FALSE, nrow(a))
     skipa <- rowSums((a[2:nrow(a),]-a[1:(nrow(a)-1),])^2) < 0.001
-    if (method == 2) {
+    if (symmetric) {
         skipb <- matrix(FALSE, nrow(b))
         skipb <- rowSums((b[2:nrow(b),]-b[1:(nrow(b)-1),])^2) < 0.001
         skip <- skipa | skipb
     }
-    if (method == 1)
+    else
         skip <- skipa
 
     a <- a[!skip,]
@@ -299,7 +301,7 @@ throughput <- function(a, b, fps = 120, pca = FALSE, residuals = TRUE,
 # See the dir_throughput function for descriptions of optional parameters.
 pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
     amc = FALSE, residuals = TRUE, features = FALSE, warnings = FALSE,
-    noise = 0, index = 2, method = 1) {
+    noise = 0, index = 2, symmetric = FALSE) {
 
     use_warnings <<- warnings
 
@@ -313,7 +315,7 @@ pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
         b$V34=NULL; b$V46=NULL;
     }
 
-    data <- remove_duplicate_frames(a, b, method)
+    data <- remove_duplicate_frames(a, b, symmetric)
     a <- data[[1]]
     b <- data[[2]]
 
@@ -328,21 +330,29 @@ pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
         features = features, index = index))
 }
 
-# For a given pair of files, evaluate RSSs and throughputs with different
-# indexes for the second AR time step.
-evaluate_RSS <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE,
-    residuals = TRUE, features = FALSE, warnings = FALSE, noise = 0, index = 2,
-    method = 1, start_index = 2, end_index = 120, step_index = 1) {
+# For a given pair of files, calculate residual sums and throughputs with
+# different indices for the second AR time step.
+#
+# See dir_throughput for optional parameters. The index parameter that
+# supplies the step size for the AR model is replaced with three new
+# parameters:
+#
+# start_step    the starting value for the AR model step size (default 2)
+# end_step      the end value for the AR model step size (default 120)
+# interval      the interval between step sizes in the trials (default 1)
+evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE,
+    residuals = TRUE, features = FALSE, warnings = FALSE, noise = 0, symmetric = FALSE,
+    start_step = 2, end_step = 120, interval = 1) {
 
-    results <- array(0, c(end_index, 4));
+    results <- array(0, c(end_step, 4));
     colnames(results) <- c("RSS","RSS_conditional","RSS / RSS_cond","TP")
 
-    for (i in seq(start_index, end_index, step_index)) {
+    for (i in seq(start_step, end_step, interval)) {
         print(i) # To see the proceeding
 
         TP <- pair_throughput(filename1, filename2, fps = fps, pca = pca, amc = amc,
             residuals = residuals, features = features, warnings = warnings,
-            noise = noise, index = index, method = method)
+            noise = noise, index = i, symmetric = symmetric)
 
         results[i,1] <- TP$RSS
         results[i,2] <- TP$RSS_residual
@@ -352,7 +362,7 @@ evaluate_RSS <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FAL
 
     return(results)
 }
-    
+
 # Calculate throughput for all aligned sequence pairs in the directory (by
 # default the current working directory).
 #
@@ -369,14 +379,15 @@ evaluate_RSS <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FAL
 # - fps        frames per second
 # - pca        use principal components analysis
 # - amc        input data is in AMC format
-# - residuals  use residuals to determine complexities
+# - residuals  use residuals of residuals to determine complexities
 # - features   also calculate throughput for individual features
 # - warnings   print warnings of low residual variance (to debug NaN results)
 # - noise      noise coefficient (default 0)
-# - index      the index to customize AR(2) of "residual of residuals" method
-# - method     the method to remove duplicates (default 1)
+# - index      the step variable for the AR(2) model in the "residuals of residuals"
+#              method
+# - symmetric  remove duplicates symmetrically (default is asymmetric)
 dir_throughput <- function(fps = 120, pca = FALSE, amc = FALSE, residuals = TRUE,
-    features = FALSE, warnings = FALSE, noise = 0, index = 2, method = 1) {
+    features = FALSE, warnings = FALSE, noise = 0, index = 2, symmetric = FALSE) {
 
     if (amc) {
         files <- dir(".", "^[[:digit:]]+.amc$")
@@ -395,10 +406,10 @@ dir_throughput <- function(fps = 120, pca = FALSE, amc = FALSE, residuals = TRUE
 
         results <- pair_throughput(file1, file2, fps = fps, pca = pca,
             amc = amc, res = residuals, features = features, warnings = warnings,
-            noise = noise, index = index, method = method)
+            noise = noise, index = index, symmetric = symmetric)
         inverse_results <- pair_throughput(file2, file1, fps = fps, pca = pca,
             amc = amc, res = residuals, features = features, warnings = warnings,
-            noise = noise, index = index, method = method)
+            noise = noise, index = index, symmetric = symmetric)
 
         total_throughputs[i,1] <- results$throughput
         total_throughputs[i,2] <- inverse_results$throughput
