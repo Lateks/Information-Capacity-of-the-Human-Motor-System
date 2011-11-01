@@ -139,7 +139,7 @@ SC <- function(a) {
 }
 
 # Complexity of a (multivariate) sequence given another
-SCcond <- function(a,b) {
+SCcond <- function(uatea,b) {
     n <- min(nrow(a), nrow(b))-2
     SC <- evaluate_SC(cbind(a[1:n,],a[1:n+1,],b[1:n+2,]), a[1:n+2,])
     complexity <- SC$total
@@ -291,7 +291,7 @@ throughput <- function(a, b, fps = 120, pca = FALSE, residuals = TRUE,
 # See the dir_throughput function for descriptions of optional parameters.
 pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
     amc = FALSE, residuals = TRUE, features = FALSE, warnings = FALSE,
-    noise = 0, index = 2, method = 1) {
+    noise = 0, index = 2, method = 1, normalize = TRUE, duplicates = FALSE) {
 
     use_warnings <<- warnings
 
@@ -304,16 +304,20 @@ pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
         a$V34=NULL; a$V46=NULL;
         b$V34=NULL; b$V46=NULL;
     }
-
-    data <- remove_duplicate_frames(a, b, method)
-    a <- data[[1]]
-    b <- data[[2]]
+    
+    if (!duplicates) {
+        data <- remove_duplicate_frames(a, b, method)
+        a <- data[[1]]
+        b <- data[[2]]
+    }
 
     if (noise > 0)
         a <- add_noise_to_features(a, noise)
-
-    a <- normalize_features(a)
-    b <- normalize_features(b)
+    
+    if (normalize) {
+        a <- normalize_features(a)
+        b <- normalize_features(b)
+    }
 
     use_warnings <<- FALSE
     return(throughput(a, b, fps = fps, pca = pca, residuals = residuals,
@@ -368,7 +372,8 @@ evaluate_RSS <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FAL
 # - index      the index to customize AR(2) of "residual of residuals" method
 # - method     the method to remove duplicates (default 1)
 dir_throughput <- function(fps = 120, pca = FALSE, amc = FALSE, residuals = TRUE,
-    features = FALSE, warnings = FALSE, noise = 0, index = 2, method = 1) {
+    features = FALSE, warnings = FALSE, noise = 0, index = 2, method = 1,
+    normalize = TRUE, duplicates = FALSE) {
 
     if (amc) {
         files <- dir(".", "^[[:digit:]]+.amc$")
@@ -387,10 +392,10 @@ dir_throughput <- function(fps = 120, pca = FALSE, amc = FALSE, residuals = TRUE
 
         results <- pair_throughput(file1, file2, fps = fps, pca = pca,
             amc = amc, res = residuals, features = features, warnings = warnings,
-            noise = noise, index = index, method = method)
+            noise = noise, index = index, method = method, normalize = normalize)
         inverse_results <- pair_throughput(file2, file1, fps = fps, pca = pca,
             amc = amc, res = residuals, features = features, warnings = warnings,
-            noise = noise, index = index, method = method)
+            noise = noise, index = index, method = method, normalize = normalize)
 
         total_throughputs[i,1] <- results$throughput
         total_throughputs[i,2] <- inverse_results$throughput
