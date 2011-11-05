@@ -149,7 +149,7 @@ SCcond <- function(uatea,b) {
         feature_complexity = feature_complexity, residual_sums = residual_sums))
 }
 
-# Removes duplicated rows from both sequences.
+# Removes duplicated rows, according to sequence a, from both sequences.
 remove_duplicate_frames <- function(a, b, method) {
     skipa <- matrix(FALSE, nrow(a))
     skipa <- rowSums((a[2:nrow(a),]-a[1:(nrow(a)-1),])^2) < 0.001
