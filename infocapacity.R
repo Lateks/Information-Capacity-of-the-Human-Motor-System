@@ -331,19 +331,19 @@ evaluate_RSS <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FAL
     method = 1, start_index = 2, end_index = 120, step_index = 1) {
 
     results <- array(0, c(end_index, 4));
-    colnames(results) <- c("RSS","RSS_conditional","RSS / RSS_cond","TP")
+    colnames(results) <- c("","RSS","RSS_conditional","RSS / RSS_cond","TP")
 
     for (i in seq(start_index, end_index, step_index)) {
         print(i) # To see the proceeding
 
         TP <- pair_throughput(filename1, filename2, fps = fps, pca = pca, amc = amc,
             residuals = residuals, features = features, warnings = warnings,
-            noise = noise, index = index, method = method)
-
-        results[i,1] <- TP$RSS
-        results[i,2] <- TP$RSS_residual
-        results[i,3] <- TP$quotient
-        results[i,4] <- TP$throughput
+            noise = noise, index = i, method = method)
+        results[i,1] <- i
+        results[i,2] <- TP$RSS
+        results[i,3] <- TP$RSS_residual
+        results[i,4] <- TP$quotient
+        results[i,5] <- TP$throughput
     }
 
     return(results)
