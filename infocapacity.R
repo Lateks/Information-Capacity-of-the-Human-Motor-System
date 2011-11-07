@@ -35,28 +35,29 @@ twopie = 2*pi*exp(1)
 # the side information always contains all the same features.
 evaluate_SC <- function(sequence_predictors, observed_sequence) {
     frames <- nrow(observed_sequence)
+    num_features <- ncol(observed_sequence)
     feature_code_length <- array(0,ncol(observed_sequence))
     total_code_length <- 0
     residual_sums = list()
-    for (i in 1:ncol(observed_sequence)) {
+    for (i in 1:num_features) {
         # extract regressors depending on the input size
-        if (ncol(sequence_predictors) == ncol(observed_sequence)) {
+        if (ncol(sequence_predictors) == num_features) {
             predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i]))
             k = 3
         }
-        if (ncol(sequence_predictors) == 2 * ncol(observed_sequence)) {
-            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i], sequence_predictors[, ncol(observed_sequence)+i]))
+        if (ncol(sequence_predictors) == 2 * num_features) {
+            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i], sequence_predictors[, num_features+i]))
             k = 4
         }
-        if (ncol(sequence_predictors) == 3 * ncol(observed_sequence)) {
-            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i], sequence_predictors[, ncol(observed_sequence)+i],
-                        sequence_predictors[, 2*ncol(observed_sequence)+i]))
+        if (ncol(sequence_predictors) == 3 * num_features) {
+            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i], sequence_predictors[, num_features+i],
+                        sequence_predictors[, 2*num_features+i]))
             k = 5
         }
-        if (ncol(sequence_predictors) == 4 * ncol(observed_sequence)) {
-            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i], sequence_predictors[, ncol(observed_sequence)+i],
-                        sequence_predictors[, 2*ncol(observed_sequence)+i],
-                        sequence_predictors[, 3*ncol(observed_sequence)+i]))
+        if (ncol(sequence_predictors) == 4 * num_features) {
+            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i], sequence_predictors[, num_features+i],
+                        sequence_predictors[, 2*num_features+i],
+                        sequence_predictors[, 3*num_features+i]))
             k = 6
         }
 
@@ -85,13 +86,14 @@ evaluate_SC <- function(sequence_predictors, observed_sequence) {
 # and some predictor features (shifted data from the observed sequence).
 evaluate_residuals <- function(sequence_predictors, observed_sequence) {
     frames <- nrow(observed_sequence)
+    num_features <- ncol(observed_sequence)
     residuals = list()
     # extract regressors depending on the input size
-    for (i in 1:ncol(observed_sequence)) {
-        if (ncol(sequence_predictors) == ncol(observed_sequence))
+    for (i in 1:num_features) {
+        if (ncol(sequence_predictors) == num_features)
             predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i]))
-        if (ncol(sequence_predictors) == 2 * ncol(observed_sequence))
-            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i], sequence_predictors[, ncol(observed_sequence)+i]))
+        if (ncol(sequence_predictors) == 2 * num_features)
+            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i], sequence_predictors[, num_features+i]))
 
         residuals[[i]] <- qr.resid(predictors, observed_sequence[, i])
     }
