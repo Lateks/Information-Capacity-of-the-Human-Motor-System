@@ -100,15 +100,11 @@ evaluate_residuals <- function(sequence_predictors, observed_sequence) {
     return(residuals)
 }
 
-shared_information_by_residuals <- function(a,b,index) {
-    n <- nrow(a) - index
+evaluate_residual_shared_information <- function(residuals_a, residuals_b) {
     total_shared <- 0
-    feature_shared <- array(0,ncol(a))
     total_RSS <- 0
     total_RSS_residual <- 0
-
-    residuals_a <- evaluate_residuals(cbind(a[1:n,],a[1:n+index-1,]), a[1:n+index,])
-    residuals_b <- evaluate_residuals(cbind(b[1:n,],b[1:n+index-1,]), b[1:n+index,])
+    feature_shared <- array(0,ncol(a))
 
     for (i in 1:length(residuals_a)) {
         lm.ra = lm(residuals_a[[i]] ~ residuals_b[[i]])
@@ -124,11 +120,24 @@ shared_information_by_residuals <- function(a,b,index) {
         feature_shared[i] <- shared_information
         total_shared <- total_shared + shared_information
     }
-    quotient <- total_RSS / total_RSS_residual
 
-    return(list(n = n, total_shared = total_shared, feature_shared = feature_shared,
-        total_RSS = total_RSS, total_RSS_residual = total_RSS_residual,
-        quotient = quotient))
+    return(list(total_shared = total_shared, feature_shared = feature_shared,
+        total_RSS = total_RSS, total_RSS_residual = total_RSS_residual))
+}
+
+shared_information_by_residuals <- function(a,b,index) {
+    n <- nrow(a) - index
+
+    residuals_a <- evaluate_residuals(cbind(a[1:n,],a[1:n+index-1,]), a[1:n+index,])
+    residuals_b <- evaluate_residuals(cbind(b[1:n,],b[1:n+index-1,]), b[1:n+index,])
+
+    results <- evaluate_residual_shared_information(residuals_a, residuals_b)
+
+    quotient <- results$total_RSS / results$total_RSS_residual
+
+    return(list(n = n, total_shared = results$total_shared,
+        feature_shared = results$feature_shared, total_RSS = results$total_RSS,
+        total_RSS_residual = results$total_RSS_residual, quotient = quotient))
 }
 
 # Complexity of a single (multivariate) sequence
