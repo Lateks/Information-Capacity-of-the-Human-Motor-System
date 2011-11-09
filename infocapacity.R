@@ -233,7 +233,7 @@ residual_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
             quotient = SI$quotient))
     }
 
-    return(list(total_SI = total_SI, throughput = throughput,
+    return(list(throughput = throughput, total_SI = total_SI,
         RSS = SI$total_RSS, RSS_residual = SI$total_RSS_residual,
         quotient = SI$quotient))
 }
@@ -275,7 +275,7 @@ original_throughput <- function(a, b, fps = 120, features = FALSE) {
             RSS_a_cond_b = RSS_a_cond_b, quotient = quotient))
     }
 
-    return(list(shared_information = shared_information, throughput = throughput,
+    return(list(throughput = throughput, shared_information = shared_information,
         RSS_a = RSS_a, RSS_a_cond_b = RSS_a_cond_b, quotient = quotient))
 }
 
@@ -372,12 +372,13 @@ evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE, a
 # working directory. (Note: all files should be for the same test subject!)
 # Files should be named <sequence number>.txt, e.g. "15.txt".
 #
-# A subdirectory named 'aligneddata' should contain the aligned data
+# The aligned data should reside in a subdirectory (by default "aligneddata")
 # in files that are named in the following way:
 #         <seq1 #>_ali_<seq2 #>.txt
 # Example: "14_ali_15.txt".
 #
 # Parameters:
+# - subdir     subdirectory that contains the aligned data (default "aligneddata")
 # - fps        frames per second
 # - pca        use principal components analysis
 # - amc        input data is in AMC format
@@ -388,8 +389,9 @@ evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE, a
 # - index      the step variable for the AR(2) model in the "residuals of residuals"
 #              method
 # - symmetric  remove duplicates symmetrically (default is asymmetric)
-dir_throughput <- function(fps = 120, pca = FALSE, amc = FALSE, residuals = TRUE,
-    features = FALSE, warnings = FALSE, noise = 0, index = 2, symmetric = FALSE) {
+dir_throughput <- function(subdir = "aligneddata", fps = 120, pca = FALSE, amc = FALSE,
+    residuals = TRUE, features = FALSE, warnings = FALSE, noise = 0, index = 2,
+    symmetric = FALSE) {
 
     if (amc) {
         files <- dir(".", "^[[:digit:]]+.amc$")
@@ -403,8 +405,8 @@ dir_throughput <- function(fps = 120, pca = FALSE, amc = FALSE, residuals = TRUE
     for (i in 1:(sequences/2)) {
         j = 2 * i - 1
         k = j + 1
-        file1 <- sprintf("aligneddata/%d_ali_%d.txt", j, k)
-        file2 <- sprintf("aligneddata/%d_ali_%d.txt", k, j)
+        file1 <- sprintf("%s/%d_ali_%d.txt", subdir, j, k)
+        file2 <- sprintf("%s/%d_ali_%d.txt", subdir, k, j)
 
         results <- pair_throughput(file1, file2, fps = fps, pca = pca,
             amc = amc, res = residuals, features = features, warnings = warnings,
