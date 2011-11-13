@@ -28,35 +28,40 @@ options(width=Sys.getenv("COLUMNS"))
 use_warnings = FALSE
 twopie = 2*pi*exp(1)
 
-# Return stochastic complexity of a sequence with the given side information
-evaluate_SC <- function(sequence, side_information) {
-    frames <- nrow(side_information)
-    feature_code_length <- array(0,ncol(side_information))
+# Return stochastic complexity of the observed sequence given predictor features
+# (sometimes containing side information from another sequence, but usually only
+# shifted data from the same sequence). The number of columns in sequence_predictors
+# is always a multiple of the number of columns in observed_sequence because
+# the side information always contains all the same features.
+evaluate_SC <- function(sequence_predictors, observed_sequence) {
+    frames <- nrow(observed_sequence)
+    num_features <- ncol(observed_sequence)
+    feature_code_length <- array(0,ncol(observed_sequence))
     total_code_length <- 0
     residual_sums = list()
-    for (i in 1:ncol(side_information)) {
+    for (i in 1:num_features) {
         # extract regressors depending on the input size
-        if (ncol(sequence) == ncol(side_information)) {
-            Aplus <- qr(cbind(matrix(1,frames,1), sequence[, i]))
+        if (ncol(sequence_predictors) == num_features) {
+            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i]))
             k = 3
         }
-        if (ncol(sequence) == 2 * ncol(side_information)) {
-            Aplus <- qr(cbind(matrix(1,frames,1), sequence[, i], sequence[, ncol(side_information)+i]))
+        if (ncol(sequence_predictors) == 2 * num_features) {
+            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i], sequence_predictors[, num_features+i]))
             k = 4
         }
-        if (ncol(sequence) == 3 * ncol(side_information)) {
-            Aplus <- qr(cbind(matrix(1,frames,1), sequence[, i], sequence[, ncol(side_information)+i],
-                        sequence[, 2*ncol(side_information)+i]))
+        if (ncol(sequence_predictors) == 3 * num_features) {
+            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i], sequence_predictors[, num_features+i],
+                        sequence_predictors[, 2*num_features+i]))
             k = 5
         }
-        if (ncol(sequence) == 4 * ncol(side_information)) {
-            Aplus <- qr(cbind(matrix(1,frames,1), sequence[, i], sequence[, ncol(side_information)+i],
-                        sequence[, 2*ncol(side_information)+i],
-                        sequence[, 3*ncol(side_information)+i]))
+        if (ncol(sequence_predictors) == 4 * num_features) {
+            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i], sequence_predictors[, num_features+i],
+                        sequence_predictors[, 2*num_features+i],
+                        sequence_predictors[, 3*num_features+i]))
             k = 6
         }
 
-        res <- qr.resid(Aplus, side_information[, i])
+        res <- qr.resid(predictors, observed_sequence[, i])
 
         # warning about possibly too low variance
         if (use_warnings)
@@ -76,32 +81,30 @@ evaluate_SC <- function(sequence, side_information) {
         residual_sums = residual_sums))
 }
 
-# Return residuals from AR(2) as a list where each element is the
-# residual vector for the corresponding feature
-evaluate_residuals <- function(v,r) {
-    frames <- nrow(r)
+# Return residuals from the AR(2) model as a list where each element is the
+# residual vector for the corresponding feature, given the observed sequence
+# and some predictor features (shifted data from the observed sequence).
+evaluate_residuals <- function(sequence_predictors, observed_sequence) {
+    frames <- nrow(observed_sequence)
+    num_features <- ncol(observed_sequence)
     residuals = list()
     # extract regressors depending on the input size
-    for (i in 1:ncol(r)) {
-        if (ncol(v) == ncol(r))
-            Aplus <- qr(cbind(matrix(1,frames,1), v[, i]))
-        if (ncol(v) == 2 * ncol(r))
-            Aplus <- qr(cbind(matrix(1,frames,1), v[, i], v[, ncol(r)+i]))
+    for (i in 1:num_features) {
+        if (ncol(sequence_predictors) == num_features)
+            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i]))
+        if (ncol(sequence_predictors) == 2 * num_features)
+            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i], sequence_predictors[, num_features+i]))
 
-        residuals[[i]] <- qr.resid(Aplus, r[, i])
+        residuals[[i]] <- qr.resid(predictors, observed_sequence[, i])
     }
     return(residuals)
 }
 
-shared_information_by_residuals <- function(a,b,index) {
-    n <- min(nrow(a), nrow(b))-index
+evaluate_residual_shared_information <- function(residuals_a, residuals_b) {
     total_shared <- 0
-    feature_shared <- array(0,ncol(a))
     total_RSS <- 0
     total_RSS_residual <- 0
-
-    residuals_a <- evaluate_residuals(cbind(a[1:n,],a[1:n+index-1,]), a[1:n+index,])
-    residuals_b <- evaluate_residuals(cbind(b[1:n,],b[1:n+index-1,]), b[1:n+index,])
+    feature_shared <- array(0,ncol(a))
 
     for (i in 1:length(residuals_a)) {
         lm.ra = lm(residuals_a[[i]] ~ residuals_b[[i]])
@@ -117,11 +120,24 @@ shared_information_by_residuals <- function(a,b,index) {
         feature_shared[i] <- shared_information
         total_shared <- total_shared + shared_information
     }
-    quotient <- total_RSS / total_RSS_residual
 
-    return(list(n = n, total_shared = total_shared, feature_shared = feature_shared,
-        total_RSS = total_RSS, total_RSS_residual = total_RSS_residual,
-        quotient = quotient))
+    return(list(total_shared = total_shared, feature_shared = feature_shared,
+        total_RSS = total_RSS, total_RSS_residual = total_RSS_residual))
+}
+
+shared_information_by_residuals <- function(a,b,index) {
+    n <- nrow(a) - index
+
+    residuals_a <- evaluate_residuals(cbind(a[1:n,],a[1:n+index-1,]), a[1:n+index,])
+    residuals_b <- evaluate_residuals(cbind(b[1:n,],b[1:n+index-1,]), b[1:n+index,])
+
+    results <- evaluate_residual_shared_information(residuals_a, residuals_b)
+
+    quotient <- results$total_RSS / results$total_RSS_residual
+
+    return(list(n = n, total_shared = results$total_shared,
+        feature_shared = results$feature_shared, total_RSS = results$total_RSS,
+        total_RSS_residual = results$total_RSS_residual, quotient = quotient))
 }
 
 # Complexity of a single (multivariate) sequence
@@ -149,16 +165,19 @@ SCcond <- function(a,b, index) {
         feature_complexity = feature_complexity, residual_sums = residual_sums))
 }
 
-# Removes duplicated rows, according to sequence a, from both sequences.
-remove_duplicate_frames <- function(a, b, method) {
+# Removes duplicated rows from both sequences a and b
+# either symmetrically or asymmetrically.
+#
+# Returns the altered sequences as a list with two elements.
+remove_duplicate_frames <- function(a, b, symmetric = FALSE) {
     skipa <- matrix(FALSE, nrow(a))
     skipa <- rowSums((a[2:nrow(a),]-a[1:(nrow(a)-1),])^2) < 0.001
-    if (method == 2) {
+    if (symmetric) {
         skipb <- matrix(FALSE, nrow(b))
         skipb <- rowSums((b[2:nrow(b),]-b[1:(nrow(b)-1),])^2) < 0.001
         skip <- skipa | skipb
     }
-    if (method == 1)
+    else
         skip <- skipa
 
     a <- a[!skip,]
@@ -167,6 +186,8 @@ remove_duplicate_frames <- function(a, b, method) {
     return(list(a, b))
 }
 
+# Performs normalization on the features of sequence a.
+# Returns the altered sequence.
 normalize_features <- function(a) {
     a <- t(apply(a,1,'-',apply(a,2,mean)))
     a <- t(apply(a,1,'/',sqrt(apply(a,2,var))))
@@ -221,7 +242,7 @@ residual_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
             quotient = SI$quotient))
     }
 
-    return(list(total_SI = total_SI, throughput = throughput,
+    return(list(throughput = throughput, total_SI = total_SI,
         RSS = SI$total_RSS, RSS_residual = SI$total_RSS_residual,
         quotient = SI$quotient))
 }
@@ -291,8 +312,8 @@ throughput <- function(a, b, fps = 120, pca = FALSE, residuals = TRUE,
 # See the dir_throughput function for descriptions of optional parameters.
 pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
     amc = FALSE, residuals = TRUE, features = FALSE, warnings = FALSE,
-    noise = 0, index = 2, method = 1, normalize = TRUE, duplicates = FALSE) {
-
+    noise = 0, index = 2, symmetric = FALSE, normalize = TRUE, duplicates = FALSE) {
+        
     use_warnings <<- warnings
 
     a <- read.table(filename1)
@@ -304,18 +325,9 @@ pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
         a$V34=NULL; a$V46=NULL;
         b$V34=NULL; b$V46=NULL;
     }
-    # normalize a and b
-    
-    # residuals of a and b
-    
-    # CTW
-    
-    # duplicate removal according a
-    
-    # AR and code length
-    
+
     if (!duplicates) {
-        data <- remove_duplicate_frames(a, b, method)
+        data <- remove_duplicate_frames(a, b, symmetric)
         a <- data[[1]]
         b <- data[[2]]
     }
@@ -333,23 +345,31 @@ pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
         features = features, index = index))
 }
 
-# For a given pair of files, evaluate RSSs and throughputs with different
-# indexes for the second AR time step.
+# For a given pair of files, calculate residual sums and throughputs with
+# different indices for the second AR time step.
+#
+# See dir_throughput for optional parameters. The index parameter that
+# supplies the step size for the AR model is replaced with three new
+# parameters:
+#
+# start_step    the starting value for the AR model step size (default 2)
+# end_step      the end value for the AR model step size (default 120)
+# interval      the interval between step sizes in the trials (default 1)
 evaluate_RSS <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE,
-    residuals = TRUE, features = FALSE, warnings = FALSE, noise = 0, method = 1,
-    start_index = 2, end_index = 120, step_index = 1) {
+    residuals = TRUE, features = FALSE, warnings = FALSE, noise = 0, symmetric = FALSE,
+    start_index = 2, end_index = 120, interval = 1) {
 
     size <- (end_index-start_index)/step_index+1
     results <- array(0, c(size, 5));
     colnames(results) <- c("index","RSS","RSS_conditional","RSS / RSS_cond","TP")
     n <- 1
     
-    for (index in seq(start_index, end_index, step_index)) {
+    for (index in seq(start_index, end_index, interval)) {
         print(index) # To see the proceeding
 
         TP <- pair_throughput(filename1, filename2, fps = fps, pca = pca, amc = amc,
             residuals = residuals, features = features, warnings = warnings,
-            noise = noise, index = index, method = method)
+            noise = noise, index = index, symmetric = symmetric)
         
         results[n,1] <- index
         results[n,2] <- TP$RSS
@@ -361,7 +381,7 @@ evaluate_RSS <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FAL
 
     return(results)
 }
-    
+
 # Calculate throughput for all aligned sequence pairs in the directory (by
 # default the current working directory).
 #
@@ -369,24 +389,26 @@ evaluate_RSS <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FAL
 # working directory. (Note: all files should be for the same test subject!)
 # Files should be named <sequence number>.txt, e.g. "15.txt".
 #
-# A subdirectory named 'aligneddata' should contain the aligned data
+# The aligned data should reside in a subdirectory (by default "aligneddata")
 # in files that are named in the following way:
 #         <seq1 #>_ali_<seq2 #>.txt
 # Example: "14_ali_15.txt".
 #
 # Parameters:
+# - subdir     subdirectory that contains the aligned data (default "aligneddata")
 # - fps        frames per second
 # - pca        use principal components analysis
 # - amc        input data is in AMC format
-# - residuals  use residuals to determine complexities
+# - residuals  use residuals of residuals to determine complexities
 # - features   also calculate throughput for individual features
 # - warnings   print warnings of low residual variance (to debug NaN results)
 # - noise      noise coefficient (default 0)
-# - index      the index to customize AR(2) of "residual of residuals" method
-# - method     the method to remove duplicates (default 1)
-dir_throughput <- function(fps = 120, pca = FALSE, amc = FALSE, residuals = TRUE,
-    features = FALSE, warnings = FALSE, noise = 0, index = 2, method = 1,
-    normalize = TRUE, duplicates = FALSE) {
+# - index      the step variable for the AR(2) model in the "residuals of residuals"
+#              method
+# - symmetric  remove duplicates symmetrically (default is asymmetric)
+dir_throughput <- function(subdir = "aligneddata", fps = 120, pca = FALSE, amc = FALSE,
+    residuals = TRUE, features = FALSE, warnings = FALSE, noise = 0, index = 2,
+    symmetric = FALSE) {
 
     if (amc) {
         files <- dir(".", "^[[:digit:]]+.amc$")
@@ -400,15 +422,15 @@ dir_throughput <- function(fps = 120, pca = FALSE, amc = FALSE, residuals = TRUE
     for (i in 1:(sequences/2)) {
         j = 2 * i - 1
         k = j + 1
-        file1 <- sprintf("aligneddata/%d_ali_%d.txt", j, k)
-        file2 <- sprintf("aligneddata/%d_ali_%d.txt", k, j)
+        file1 <- sprintf("%s/%d_ali_%d.txt", subdir, j, k)
+        file2 <- sprintf("%s/%d_ali_%d.txt", subdir, k, j)
 
         results <- pair_throughput(file1, file2, fps = fps, pca = pca,
             amc = amc, res = residuals, features = features, warnings = warnings,
-            noise = noise, index = index, method = method, normalize = normalize)
+            noise = noise, index = index, symmetric = symmetric, normalize = normalize)
         inverse_results <- pair_throughput(file2, file1, fps = fps, pca = pca,
             amc = amc, res = residuals, features = features, warnings = warnings,
-            noise = noise, index = index, method = method, normalize = normalize)
+            noise = noise, index = index, symmetric = symmetric, normalize = normalize)
 
         total_throughputs[i,1] <- results$throughput
         total_throughputs[i,2] <- inverse_results$throughput
