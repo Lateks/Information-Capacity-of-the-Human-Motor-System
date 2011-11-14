@@ -71,3 +71,17 @@ evaluate_residual_complexity <- function(directory = "residuals/aligneddata", fp
 
     return(all_results)
 }
+
+pair_residual_complexity <- function(filename1, filename2, fps = 20)
+{
+    a <- read.table(filename1)
+    b <- read.table(filename2)
+
+    data <- remove_duplicate_frames(a, b)
+    a <- data[[1]]
+    b <- data[[2]]
+
+    results_a <- evaluate_residual_shared_information(a, b)
+    throughput <- results_a$total_shared / nrow(a) * fps / log(2.0)
+    return(list(throughput = throughput, results_a))
+}
