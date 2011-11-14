@@ -100,7 +100,7 @@ evaluate_residuals <- function(sequence_predictors, observed_sequence) {
     return(residuals)
 }
 
-evaluate_residual_shared_information <- function(residuals_a, residuals_b) {
+evaluate_residual_shared_information <- function(residuals_a, residuals_b, n) {
     total_shared <- 0
     total_RSS <- 0
     total_RSS_residual <- 0
@@ -131,7 +131,7 @@ shared_information_by_residuals <- function(a,b,index) {
     residuals_a <- evaluate_residuals(cbind(a[1:n,],a[1:n+index-1,]), a[1:n+index,])
     residuals_b <- evaluate_residuals(cbind(b[1:n,],b[1:n+index-1,]), b[1:n+index,])
 
-    results <- evaluate_residual_shared_information(residuals_a, residuals_b)
+    results <- evaluate_residual_shared_information(residuals_a, residuals_b, n)
 
     quotient <- results$total_RSS / results$total_RSS_residual
 
@@ -170,11 +170,13 @@ SCcond <- function(a,b) {
 #
 # Returns the altered sequences as a list with two elements.
 remove_duplicate_frames <- function(a, b, symmetric = FALSE) {
-    skipa <- matrix(FALSE, nrow(a))
+    #skipa <- matrix(FALSE, nrow(a))
     skipa <- rowSums((a[2:nrow(a),]-a[1:(nrow(a)-1),])^2) < 0.001
+    skipa <- c(FALSE, skipa)
     if (symmetric) {
         skipb <- matrix(FALSE, nrow(b))
         skipb <- rowSums((b[2:nrow(b),]-b[1:(nrow(b)-1),])^2) < 0.001
+        skipb <- c(FALSE, skipb)
         skip <- skipa | skipb
     }
     else
