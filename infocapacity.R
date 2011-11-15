@@ -100,17 +100,21 @@ evaluate_residuals <- function(sequence_predictors, observed_sequence) {
     return(residuals)
 }
 
+# Evaluates shared information using the "residuals of residuals" method.
+# Parameters:
+# - residuals_a, residuals_b    residual sequences (data frames or matrices)
+# - n                           number of frames in the sequences
 evaluate_residual_shared_information <- function(residuals_a, residuals_b, n) {
     total_shared <- 0
     total_RSS <- 0
     total_RSS_residual <- 0
-    feature_shared <- array(0,ncol(a))
+    feature_shared <- array(0, n)
 
     for (i in 1:length(residuals_a)) {
-        lm.ra = lm(residuals_a[[i]] ~ residuals_b[[i]])
+        lm.ra = lm(residuals_a[,i] ~ residuals_b[,i])
         residuals = resid(lm.ra)
 
-        RSS <- sum(residuals_a[[i]]^2)
+        RSS <- sum(residuals_a[,i]^2)
         RSS_residual <- sum(residuals^2)
         total_RSS <- total_RSS + RSS
         total_RSS_residual <- total_RSS_residual + RSS_residual
@@ -125,13 +129,17 @@ evaluate_residual_shared_information <- function(residuals_a, residuals_b, n) {
         total_RSS = total_RSS, total_RSS_residual = total_RSS_residual))
 }
 
+# Returns shared information calculated with the "residuals of residuals" method.
+# Parameters:
+# - a, b    sequences
+# - index   second step size for the AR model
 shared_information_by_residuals <- function(a,b,index) {
     n <- nrow(a) - index
 
     residuals_a <- evaluate_residuals(cbind(a[1:n,],a[1:n+index-1,]), a[1:n+index,])
     residuals_b <- evaluate_residuals(cbind(b[1:n,],b[1:n+index-1,]), b[1:n+index,])
 
-    results <- evaluate_residual_shared_information(residuals_a, residuals_b, n)
+    results <- evaluate_residual_shared_information(as.data.frame(residuals_a), as.data.frame(residuals_b), n)
 
     quotient <- results$total_RSS / results$total_RSS_residual
 
@@ -170,7 +178,6 @@ SCcond <- function(a,b) {
 #
 # Returns the altered sequences as a list with two elements.
 remove_duplicate_frames <- function(a, b, symmetric = FALSE) {
-    #skipa <- matrix(FALSE, nrow(a))
     skipa <- rowSums((a[2:nrow(a),]-a[1:(nrow(a)-1),])^2) < 0.001
     skipa <- c(FALSE, skipa)
     if (symmetric) {
