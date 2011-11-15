@@ -1,27 +1,14 @@
 # Assume there is a symbolic link called "infocapacity" to infocapacity.R
 source("infocapacity")
 
-# Calculates residuals for all sequences in the given directory and writes them
-# to files in the result directory (parameter resultdir).
-calculate_residuals <- function(directory = ".", resultdir = "residuals", normalize = TRUE)
+calculate_residuals <- function(sequencefile)
 {
-    filenames <- dir(".", "^[[:digit:]]+.txt$")
-    if (!file.exists(resultdir))
-        dir.create(resultdir)
+    sequence <- normalize_features(read.table(sequencefile))
+    n <- nrow(sequence) - 2
 
-    for (i in 1:length(filenames)) {
-        print(filenames[i])
-        data <- read.table(filenames[i])
-        if (normalize)
-            data <- normalize_features(data)
-        n <- nrow(data) - 2
+    residuals <- evaluate_residuals(cbind(sequence[1:n,],sequence[1:n+1,]), sequence[1:n+2,])
 
-        residuals <- evaluate_residuals(cbind(data[1:n,],data[1:n+1,]), data[1:n+2,])
-        print(nrow(data))
-        print(nrow(as.data.frame(residuals)))
-        write.table(residuals, sprintf("%s/%s", resultdir, filenames[i]),
-            sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE);
-    }
+    return(as.data.frame(residuals))
 }
 
 unpack_results_to_matrix <- function(sequence_index, results, resultmatrix, fps,
@@ -52,7 +39,7 @@ align_residuals <- function(sequence, residuals)
     residuals <- as.matrix(residuals)
     frames <- nrow(sequence)
 
-    duplicate <- rowSums((sequence[2:frames,]-sequence[1:(frames-1),])^2) == 0
+    duplicate <- rowSums((sequence[2:frames,]-sequence[1:(frames-1),])^2) < 0.001
     index <- index_of_third_frame(duplicate)
     duplicate <- duplicate[index:length(duplicate)]
 
@@ -69,7 +56,7 @@ align_residuals <- function(sequence, residuals)
     return(as.data.frame(aligned))
 }
 
-evaluate_residual_complexity <- function(aligneddir = "aligneddata", residualdir = "residuals", fps = 120)
+evaluate_residual_complexity <- function(aligneddir = "aligneddata", fps = 120)
 {
     filenames <- dir(aligneddir, "^[[:digit:]]+_ali_[[:digit:]]+.txt$")
     sequences <- length(filenames)
@@ -79,13 +66,11 @@ evaluate_residual_complexity <- function(aligneddir = "aligneddata", residualdir
     for (i in 1:(sequences/2)) {
         j = 2 * i - 1
         k = j + 1
-        file1 <- sprintf("%s/%d_ali_%d.txt", aligneddir, j, k)
-        file2 <- sprintf("%s/%d_ali_%d.txt", aligneddir, k, j)
-        residuals_a <- read.table(sprintf("%s/%02d.txt", residualdir, j))
-        residuals_b <- read.table(sprintf("%s/%02d.txt", residualdir, k))
+        a <- read.table(sprintf("%s/%d_ali_%d.txt", aligneddir, j, k))
+        b <- read.table(sprintf("%s/%d_ali_%d.txt", aligneddir, k, j))
 
-        a <- read.table(file1)
-        b <- read.table(file2)
+        residuals_a <- calculate_residuals(sprintf("%02d.txt", j))
+        residuals_b <- calculate_residuals(sprintf("%02d.txt", k))
 
         resid_a <- align_residuals(a, residuals_a)
         resid_b <- align_residuals(b, residuals_b)
