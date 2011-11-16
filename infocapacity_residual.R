@@ -1,5 +1,4 @@
-# Assume there is a symbolic link called "infocapacity" to infocapacity.R
-source("infocapacity")
+source("infocapacity.R")
 
 calculate_residuals <- function(sequencefile)
 {
@@ -82,13 +81,14 @@ evaluate_residual_complexity <- function(aligneddir = "aligneddata", fps = 120)
         if (diff > 0)
             resid_a <- resid_a[(diff+1):nrow(resid_a),]
 
-        data <- remove_duplicate_frames(resid_a, resid_b)
-        resid_a <- data[[1]]
-        resid_b <- data[[2]]
+        data_a <- remove_duplicate_frames(resid_a, resid_b)
+        data_b <- remove_duplicate_frames(resid_b, resid_a)
 
-        n <- nrow(resid_a)
-        results_a <- evaluate_residual_shared_information(resid_a, resid_b, n)
-        results_b <- evaluate_residual_shared_information(resid_b, resid_a, n)
+        n_a <- nrow(data_a[[1]])
+        n_b <- nrow(data_b[[1]])
+
+        results_a <- evaluate_residual_shared_information(data_a[[1]], data_a[[2]], n_a)
+        results_b <- evaluate_residual_shared_information(data_b[[1]], data_b[[2]], n_b)
 
         all_results <- unpack_results_to_matrix(j, results_a, all_results, fps, nrow(a))
         all_results <- unpack_results_to_matrix(k, results_b, all_results, fps, nrow(b))
