@@ -322,7 +322,7 @@ throughput <- function(a, b, fps = 120, pca = FALSE, residuals = TRUE,
 pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
     amc = FALSE, residuals = TRUE, features = FALSE, warnings = FALSE,
     noise = 0, index = 2, symmetric = FALSE, normalize = TRUE, duplicates = FALSE) {
-        
+
     use_warnings <<- warnings
 
     a <- read.table(filename1)
@@ -343,11 +343,9 @@ pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
 
     if (noise > 0)
         a <- add_noise_to_features(a, noise)
-    
-    if (normalize) {
-        a <- normalize_features(a)
-        b <- normalize_features(b)
-    }
+
+    a <- normalize_features(a)
+    b <- normalize_features(b)
 
     use_warnings <<- FALSE
     return(throughput(a, b, fps = fps, pca = pca, residuals = residuals,
@@ -372,14 +370,14 @@ evaluate_RSS <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FAL
     results <- array(0, c(size, 5));
     colnames(results) <- c("index","RSS","RSS_conditional","RSS / RSS_cond","TP")
     n <- 1
-    
+
     for (index in seq(start_index, end_index, interval)) {
-        print(index) # To see the proceeding
+        print(index)
 
         TP <- pair_throughput(filename1, filename2, fps = fps, pca = pca, amc = amc,
             residuals = residuals, features = features, warnings = warnings,
             noise = noise, index = index, symmetric = symmetric)
-        
+
         results[n,1] <- index
         results[n,2] <- TP$RSS
         results[n,3] <- TP$RSS_residual
