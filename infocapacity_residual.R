@@ -146,11 +146,12 @@ evaluate_residual_complexity <- function(aligneddir = "aligneddata", fps = 120)
         residuals_b <- get_aligned_residuals(sprintf("%02d.txt", k), b)
 
         residuals <- cut_to_equal_length(residuals_a, residuals_b)
-        n_a <- nrow(residuals[[1]])
-        n_b <- nrow(residuals[[2]])
 
         results_a <- pair_residual_complexity(residuals[[1]], residuals[[2]])
         results_b <- pair_residual_complexity(residuals[[2]], residuals[[1]])
+
+        n_a <- nrow(residuals[[1]])
+        n_b <- nrow(residuals[[2]])
 
         all_results <- unpack_results_to_matrix(j, results_a, all_results, fps, n_a)
         all_results <- unpack_results_to_matrix(k, results_b, all_results, fps, n_b)

@@ -178,11 +178,11 @@ SCcond <- function(a,b, index) {
 #
 # Returns the altered sequences as a list with two elements.
 remove_duplicate_frames <- function(a, b, symmetric = FALSE) {
-    skipa <- rowSums((a[2:nrow(a),]-a[1:(nrow(a)-1),])^2) < 0.001
+    skipa <- rowSums((a[2:nrow(a),]-a[1:(nrow(a)-1),])^2) == 0
     skipa <- c(FALSE, skipa)
     if (symmetric) {
         skipb <- matrix(FALSE, nrow(b))
-        skipb <- rowSums((b[2:nrow(b),]-b[1:(nrow(b)-1),])^2) < 0.001
+        skipb <- rowSums((b[2:nrow(b),]-b[1:(nrow(b)-1),])^2) == 0
         skipb <- c(FALSE, skipb)
         skip <- skipa | skipb
     }
