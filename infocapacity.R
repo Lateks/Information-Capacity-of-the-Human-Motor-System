@@ -149,12 +149,12 @@ shared_information_by_residuals <- function(a,b,index) {
 }
 
 # Complexity of a single (multivariate) sequence
-SC <- function(a) {
-    n <- nrow(a)-2
+SC <- function(a, index) {
+    n <- nrow(a)-index
     if (n < 1)
         return(list(n = 0,k = 1,cl = 0,rate = 0))
 
-    SC <- evaluate_SC(cbind(a[1:n,],a[1:n+1,]), a[1:n+2,])
+    SC <- evaluate_SC(cbind(a[1:n,],a[1:n+index-1,]), a[1:n+index,])
     complexity <- SC$total
     feature_complexity <- SC$feature
     residual_sums <- SC$residual_sums
@@ -163,9 +163,9 @@ SC <- function(a) {
 }
 
 # Complexity of a (multivariate) sequence given another
-SCcond <- function(a,b) {
-    n <- min(nrow(a), nrow(b))-2
-    SC <- evaluate_SC(cbind(a[1:n,],a[1:n+1,],b[1:n+2,]), a[1:n+2,])
+SCcond <- function(a,b, index) {
+    n <- min(nrow(a), nrow(b))-index
+    SC <- evaluate_SC(cbind(a[1:n,],a[1:n+index-1,],b[1:n+index,]), a[1:n+index,])
     complexity <- SC$total
     feature_complexity <- SC$feature
     residual_sums <- SC$residual_sums
@@ -258,10 +258,10 @@ residual_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
 
 # Returns throughput calculated in the manner described in the original
 # arxiv paper draft.
-original_throughput <- function(a, b, fps = 120, features = FALSE) {
+original_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
     length_a <- nrow(a)
-    SC_a <- SC(a)
-    SC_a_b <- SCcond(a, b)
+    SC_a <- SC(a, index)
+    SC_a_b <- SCcond(a, b, index)
 
     complexity_of_a <- SC_a$complexity
     feature_complexity_of_a <- SC_a$feature_complexity
@@ -286,15 +286,15 @@ original_throughput <- function(a, b, fps = 120, features = FALSE) {
                 feature_complexity_of_a_cond_b[k]) / length_a * fps / log(2.0)
         }
 
-        return(list(shared_information = shared_information,
+        return(list(total_SI = shared_information,
             throughput = throughput,
-            feature_shared_informations = feature_shared_informations,
-            feature_throughputs = feature_throughputs, RSS_a = RSS_a,
-            RSS_a_cond_b = RSS_a_cond_b, quotient = quotient))
+            feature_SI = feature_shared_informations,
+            feature_throughputs = feature_throughputs, RSS = RSS_a,
+            RSS_residual = RSS_a_cond_b, quotient = quotient))
     }
 
-    return(list(throughput = throughput, shared_information = shared_information,
-        RSS_a = RSS_a, RSS_a_cond_b = RSS_a_cond_b, quotient = quotient))
+    return(list(total_SI = shared_information, throughput = throughput,
+        RSS = RSS_a, RSS_residual = RSS_a_cond_b, quotient = quotient))
 }
 
 # Calculate throughput for a given pair of matrices.
@@ -313,7 +313,7 @@ throughput <- function(a, b, fps = 120, pca = FALSE, residuals = TRUE,
         return(residual_throughput(a, b, fps = fps,
             features = features, index = index))
 
-    return(original_throughput(a, b, fps = fps , features = features))
+    return(original_throughput(a, b, fps = fps , features = features, index = index))
 }
 
 # Calculate throughput for a given pair of files.
@@ -321,8 +321,8 @@ throughput <- function(a, b, fps = 120, pca = FALSE, residuals = TRUE,
 # See the dir_throughput function for descriptions of optional parameters.
 pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
     amc = FALSE, residuals = TRUE, features = FALSE, warnings = FALSE,
-    noise = 0, index = 2, symmetric = FALSE) {
-
+    noise = 0, index = 2, symmetric = FALSE, normalize = TRUE, duplicates = FALSE) {
+        
     use_warnings <<- warnings
 
     a <- read.table(filename1)
@@ -335,15 +335,19 @@ pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
         b$V34=NULL; b$V46=NULL;
     }
 
-    data <- remove_duplicate_frames(a, b, symmetric)
-    a <- data[[1]]
-    b <- data[[2]]
+    if (!duplicates) {
+        data <- remove_duplicate_frames(a, b, symmetric)
+        a <- data[[1]]
+        b <- data[[2]]
+    }
 
     if (noise > 0)
         a <- add_noise_to_features(a, noise)
-
-    a <- normalize_features(a)
-    b <- normalize_features(b)
+    
+    if (normalize) {
+        a <- normalize_features(a)
+        b <- normalize_features(b)
+    }
 
     use_warnings <<- FALSE
     return(throughput(a, b, fps = fps, pca = pca, residuals = residuals,
@@ -360,24 +364,28 @@ pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
 # start_step    the starting value for the AR model step size (default 2)
 # end_step      the end value for the AR model step size (default 120)
 # interval      the interval between step sizes in the trials (default 1)
-evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE,
+evaluate_RSS <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE,
     residuals = TRUE, features = FALSE, warnings = FALSE, noise = 0, symmetric = FALSE,
-    start_step = 2, end_step = 120, interval = 1) {
+    start_index = 2, end_index = 120, interval = 1) {
 
-    results <- array(0, c(end_step, 4));
-    colnames(results) <- c("RSS","RSS_conditional","RSS / RSS_cond","TP")
-
-    for (i in seq(start_step, end_step, interval)) {
-        print(i) # To see the proceeding
+    size <- (end_index-start_index)/step_index+1
+    results <- array(0, c(size, 5));
+    colnames(results) <- c("index","RSS","RSS_conditional","RSS / RSS_cond","TP")
+    n <- 1
+    
+    for (index in seq(start_index, end_index, interval)) {
+        print(index) # To see the proceeding
 
         TP <- pair_throughput(filename1, filename2, fps = fps, pca = pca, amc = amc,
             residuals = residuals, features = features, warnings = warnings,
-            noise = noise, index = i, symmetric = symmetric)
-
-        results[i,1] <- TP$RSS
-        results[i,2] <- TP$RSS_residual
-        results[i,3] <- TP$quotient
-        results[i,4] <- TP$throughput
+            noise = noise, index = index, symmetric = symmetric)
+        
+        results[n,1] <- index
+        results[n,2] <- TP$RSS
+        results[n,3] <- TP$RSS_residual
+        results[n,4] <- TP$quotient
+        results[n,5] <- TP$throughput
+        n <- n+1
     }
 
     return(results)
@@ -428,10 +436,10 @@ dir_throughput <- function(subdir = "aligneddata", fps = 120, pca = FALSE, amc =
 
         results <- pair_throughput(file1, file2, fps = fps, pca = pca,
             amc = amc, res = residuals, features = features, warnings = warnings,
-            noise = noise, index = index, symmetric = symmetric)
+            noise = noise, index = index, symmetric = symmetric, normalize = normalize)
         inverse_results <- pair_throughput(file2, file1, fps = fps, pca = pca,
             amc = amc, res = residuals, features = features, warnings = warnings,
-            noise = noise, index = index, symmetric = symmetric)
+            noise = noise, index = index, symmetric = symmetric, normalize = normalize)
 
         total_throughputs[i,1] <- results$throughput
         total_throughputs[i,2] <- inverse_results$throughput
