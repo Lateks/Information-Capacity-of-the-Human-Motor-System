@@ -293,8 +293,8 @@ original_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
             RSS_residual = RSS_a_cond_b, quotient = quotient))
     }
 
-    return(list(total_SI = shared_information, throughput = throughput,
-        RSS = RSS_a, RSS_residual = RSS_a_cond_b, quotient = quotient))
+    return(list(throughput = throughput, total_SI = shared_information,
+        RSS = RSS_a, RSS_conditional = RSS_a_cond_b, quotient = quotient))
 }
 
 # Calculate throughput for a given pair of matrices.
@@ -433,10 +433,10 @@ dir_throughput <- function(subdir = "aligneddata", fps = 120, pca = FALSE, amc =
         file2 <- sprintf("%s/%d_ali_%d.txt", subdir, k, j)
 
         results <- pair_throughput(file1, file2, fps = fps, pca = pca,
-            amc = amc, res = residuals, features = features, warnings = warnings,
+            amc = amc, residuals = residuals, features = features, warnings = warnings,
             noise = noise, index = index, symmetric = symmetric, normalize = normalize)
         inverse_results <- pair_throughput(file2, file1, fps = fps, pca = pca,
-            amc = amc, res = residuals, features = features, warnings = warnings,
+            amc = amc, residuals = residuals, features = features, warnings = warnings,
             noise = noise, index = index, symmetric = symmetric, normalize = normalize)
 
         total_throughputs[i,1] <- results$throughput
