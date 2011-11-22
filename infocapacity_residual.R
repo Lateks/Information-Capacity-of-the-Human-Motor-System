@@ -66,7 +66,7 @@ align_residuals <- function(sequence, residuals)
     residuals <- as.matrix(residuals)
     frames <- nrow(sequence)
 
-    duplicate <- rowSums((sequence[2:frames,]-sequence[1:(frames-1),])^2) < 0.001
+    duplicate <- rowSums((sequence[2:frames,]-sequence[1:(frames-1),])^2) == 0
     index <- index_of_third_frame(duplicate)
     duplicate <- duplicate[index:length(duplicate)]
 
