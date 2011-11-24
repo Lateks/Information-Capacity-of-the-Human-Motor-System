@@ -321,7 +321,7 @@ throughput <- function(a, b, fps = 120, pca = FALSE, residuals = TRUE,
 # See the dir_throughput function for descriptions of optional parameters.
 pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
     amc = FALSE, residuals = TRUE, features = FALSE, warnings = FALSE,
-    noise = 0, index = 2, symmetric = FALSE, normalize = TRUE, duplicates = FALSE) {
+    noise = 0, index = 2, symmetric = FALSE, normalize = TRUE) {
 
     use_warnings <<- warnings
 
@@ -335,11 +335,9 @@ pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
         b$V34=NULL; b$V46=NULL;
     }
 
-    if (!duplicates) {
-        data <- remove_duplicate_frames(a, b, symmetric)
-        a <- data[[1]]
-        b <- data[[2]]
-    }
+    data <- remove_duplicate_frames(a, b, symmetric)
+    a <- data[[1]]
+    b <- data[[2]]
 
     if (noise > 0)
         a <- add_noise_to_features(a, noise)
