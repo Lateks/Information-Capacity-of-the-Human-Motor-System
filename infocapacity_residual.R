@@ -111,10 +111,19 @@ get_aligned_residuals <- function(sequencefile, aligned_sequence) {
 # Helper function for evaluate_residual complexity.
 # Parameters:
 # - a, b    aligned residual sequences
-pair_residual_complexity <- function(a, b) {
+pair_residual_complexity <- function(a, b, pca = FALSE) {
     data <- remove_duplicate_frames(a, b)
-    n <- nrow(data[[1]])
-    return(evaluate_residual_shared_information(data[[1]], data[[2]], n))
+    a <- data[[1]]
+    b <- data[[2]]
+    n <- nrow(a)
+
+    if (pca) {
+        eigenvectors <- pca(a)
+        a <- as.data.frame(as.matrix(a) %*% eigenvectors)
+        b <- as.data.frame(as.matrix(b) %*% eigenvectors)
+    }
+
+    return(evaluate_residual_shared_information(a, b, n))
 }
 
 # Calculates residual complexities and throughputs for all sequences in
@@ -129,7 +138,9 @@ pair_residual_complexity <- function(a, b) {
 # - aligneddir      the name of the subdirectory containing the aligned
 #                   coordinate sequences ("aligneddata" by default)
 # - fps             frames per second in the given sequences
-evaluate_residual_complexity <- function(aligneddir = "aligneddata", fps = 120)
+# - pca             use principal components analysis
+evaluate_residual_complexity <- function(aligneddir = "aligneddata", fps = 120,
+    pca = FALSE)
 {
     filenames <- dir(aligneddir, "^[[:digit:]]+_ali_[[:digit:]]+.txt$")
     sequences <- length(filenames)
@@ -147,8 +158,8 @@ evaluate_residual_complexity <- function(aligneddir = "aligneddata", fps = 120)
 
         residuals <- cut_to_equal_length(residuals_a, residuals_b)
 
-        results_a <- pair_residual_complexity(residuals[[1]], residuals[[2]])
-        results_b <- pair_residual_complexity(residuals[[2]], residuals[[1]])
+        results_a <- pair_residual_complexity(residuals[[1]], residuals[[2]], pca)
+        results_b <- pair_residual_complexity(residuals[[2]], residuals[[1]], pca)
 
         n_a <- nrow(residuals[[1]])
         n_b <- nrow(residuals[[2]])
