@@ -64,10 +64,10 @@ align_residuals <- function(sequence, residuals)
     index <- index_of_third_frame(duplicate)
     duplicate <- duplicate[index:length(duplicate)]
 
-    aligned <- matrix(0, nrow = frames - (index + 1), ncol = ncol(sequence))
+    aligned <- matrix(0, nrow = frames - index, ncol = ncol(sequence))
     line <- 0
 
-    for (l in 1:(frames - (index + 1))) {
+    for (l in 1:(frames - index)) {
         if (!duplicate[l])
             line <- line + 1
 
