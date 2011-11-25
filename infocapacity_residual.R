@@ -21,20 +21,14 @@ calculate_residuals <- function(sequencefile)
 # - sequence_index      index of the sequence, which indicates which row
 #                       of the result matrix the results should be placed on
 # - results             a result list given by evaluate_residual_shared_information
-# - resultmatrix        matrix to unpack the results to
 # - fps                 frames per second (to calculate throughut)
 # - seq_length          sequence length (after alignment and duplicate removal)
-unpack_results_to_matrix <- function(sequence_index, results, resultmatrix, fps,
-    seq_length)
+construct_result_vector <- function(sequence_index, results, fps, seq_length)
 {
     quotient <- results$total_RSS / results$total_RSS_residual
     throughput <- results$total_shared / seq_length * fps / log(2.0)
 
-    resultmatrix[sequence_index,1] <- throughput
-    resultmatrix[sequence_index,2] <- results$total_RSS
-    resultmatrix[sequence_index,3] <- results$total_RSS_residual
-    resultmatrix[sequence_index,4] <- quotient
-    return(resultmatrix)
+    return(c(throughput, results$total_RSS, results$total_RSS_residual, quotient))
 }
 
 # Returns the index of the third frame of the original sequence
@@ -111,7 +105,7 @@ get_aligned_residuals <- function(sequencefile, aligned_sequence) {
 # Helper function for evaluate_residual complexity.
 # Parameters:
 # - a, b    aligned residual sequences
-pair_residual_complexity <- function(a, b, pca = FALSE) {
+pair_residual_complexity <- function(a, b, pairnumber, fps, pca = FALSE) {
     data <- remove_duplicate_frames(a, b)
     a <- data[[1]]
     b <- data[[2]]
@@ -123,7 +117,26 @@ pair_residual_complexity <- function(a, b, pca = FALSE) {
         b <- as.data.frame(as.matrix(b) %*% eigenvectors)
     }
 
-    return(evaluate_residual_shared_information(a, b, n))
+    results_a <- evaluate_residual_shared_information(a, b, n)
+    return(construct_result_vector(pairnumber, results_a, fps, n))
+}
+
+evaluate_pair <- function(seqnum1, seqnum2, aligneddir = "aligneddata", fps = 120, pca = FALSE)
+{
+    a <- read.table(sprintf("%s/%d_ali_%d.txt", aligneddir, seqnum1, seqnum2))
+    b <- read.table(sprintf("%s/%d_ali_%d.txt", aligneddir, seqnum2, seqnum1))
+
+    residuals_a <- get_aligned_residuals(sprintf("%02d.txt", seqnum1), a)
+    residuals_b <- get_aligned_residuals(sprintf("%02d.txt", seqnum2), b)
+
+    residuals <- cut_to_equal_length(residuals_a, residuals_b)
+
+    results_a <- pair_residual_complexity(residuals[[1]], residuals[[2]], seqnum1,
+        pca = pca, fps = fps)
+    results_b <- pair_residual_complexity(residuals[[2]], residuals[[1]], seqnum2,
+        pca = pca, fps = fps)
+
+    return(rbind(results_a, results_b, deparse.level = 0))
 }
 
 # Calculates residual complexities and throughputs for all sequences in
@@ -150,22 +163,8 @@ evaluate_residual_complexity <- function(aligneddir = "aligneddata", fps = 120,
     for (i in 1:(sequences/2)) {
         j = 2 * i - 1
         k = j + 1
-        a <- read.table(sprintf("%s/%d_ali_%d.txt", aligneddir, j, k))
-        b <- read.table(sprintf("%s/%d_ali_%d.txt", aligneddir, k, j))
-
-        residuals_a <- get_aligned_residuals(sprintf("%02d.txt", j), a)
-        residuals_b <- get_aligned_residuals(sprintf("%02d.txt", k), b)
-
-        residuals <- cut_to_equal_length(residuals_a, residuals_b)
-
-        results_a <- pair_residual_complexity(residuals[[1]], residuals[[2]], pca)
-        results_b <- pair_residual_complexity(residuals[[2]], residuals[[1]], pca)
-
-        n_a <- nrow(residuals[[1]])
-        n_b <- nrow(residuals[[2]])
-
-        all_results <- unpack_results_to_matrix(j, results_a, all_results, fps, n_a)
-        all_results <- unpack_results_to_matrix(k, results_b, all_results, fps, n_b)
+        all_results[j:k,] <- evaluate_pair(j, k, aligneddir = aligneddir,
+            fps = fps, pca = pca)
     }
 
     return(all_results)
