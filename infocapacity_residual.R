@@ -28,7 +28,7 @@ construct_result_vector <- function(sequence_index, results, fps, seq_length)
     quotient <- results$total_RSS / results$total_RSS_residual
     throughput <- results$total_shared / seq_length * fps / log(2.0)
 
-    return(c(throughput, results$total_RSS, results$total_RSS_residual, quotient))
+    return(c(throughput, results$total_shared, results$total_RSS, results$total_RSS_residual, quotient))
 }
 
 # Returns the index of the third frame of the original sequence
@@ -157,8 +157,8 @@ evaluate_residual_complexity <- function(aligneddir = "aligneddata", fps = 120,
 {
     filenames <- dir(aligneddir, "^[[:digit:]]+_ali_[[:digit:]]+.txt$")
     sequences <- length(filenames)
-    all_results <- matrix(nrow = sequences, ncol = 4,
-        dimnames = list(1:sequences, c("TP", "RSS", "RSS_resid", "quotient")))
+    all_results <- matrix(nrow = sequences, ncol = 5,
+        dimnames = list(1:sequences, c("TP", "shared", "RSS", "RSS_resid", "quotient")))
 
     for (i in 1:(sequences/2)) {
         j = 2 * i - 1
