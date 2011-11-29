@@ -10,7 +10,7 @@ calculate_residuals <- function(sequencefile)
 
     residuals <- evaluate_residuals(cbind(sequence[1:n,],sequence[1:n+1,]), sequence[1:n+2,])
 
-    return(as.data.frame(residuals))
+    return(residuals)
 }
 
 # Given a result list, a result matrix and other information used in
@@ -57,14 +57,14 @@ index_of_third_frame <- function(duplicate) {
 # - residuals   residuals for the original (non-aligned) sequence
 align_residuals <- function(sequence, residuals)
 {
-    residuals <- as.matrix(residuals)
     frames <- nrow(sequence)
+    features <- ncol(sequence)
 
     duplicate <- rowSums((sequence[2:frames,]-sequence[1:(frames-1),])^2) == 0
     index <- index_of_third_frame(duplicate)
     duplicate <- duplicate[index:length(duplicate)]
 
-    aligned <- matrix(0, nrow = frames - index, ncol = ncol(sequence))
+    aligned <- matrix(0, nrow = frames - index, ncol = features)
     line <- 0
 
     for (l in 1:(frames - index)) {
@@ -74,7 +74,7 @@ align_residuals <- function(sequence, residuals)
         aligned[l,] <- residuals[line,]
     }
 
-    return(as.data.frame(aligned))
+    return(aligned)
 }
 
 # Cuts two sequences to equal length by removing frames from the
@@ -113,8 +113,8 @@ pair_residual_complexity <- function(a, b, pairnumber, fps, pca = FALSE) {
 
     if (pca) {
         eigenvectors <- pca(a)
-        a <- as.data.frame(as.matrix(a) %*% eigenvectors)
-        b <- as.data.frame(as.matrix(b) %*% eigenvectors)
+        a <- a %*% eigenvectors
+        b <- b %*% eigenvectors
     }
 
     results_a <- evaluate_residual_shared_information(a, b, n)
@@ -123,8 +123,8 @@ pair_residual_complexity <- function(a, b, pairnumber, fps, pca = FALSE) {
 
 evaluate_pair <- function(seqnum1, seqnum2, aligneddir = "aligneddata", fps = 120, pca = FALSE)
 {
-    a <- read.table(sprintf("%s/%d_ali_%d.txt", aligneddir, seqnum1, seqnum2))
-    b <- read.table(sprintf("%s/%d_ali_%d.txt", aligneddir, seqnum2, seqnum1))
+    a <- as.matrix(read.table(sprintf("%s/%d_ali_%d.txt", aligneddir, seqnum1, seqnum2)))
+    b <- as.matrix(read.table(sprintf("%s/%d_ali_%d.txt", aligneddir, seqnum2, seqnum1)))
 
     residuals_a <- get_aligned_residuals(sprintf("%02d.txt", seqnum1), a)
     residuals_b <- get_aligned_residuals(sprintf("%02d.txt", seqnum2), b)
