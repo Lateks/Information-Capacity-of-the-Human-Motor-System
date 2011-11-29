@@ -30,9 +30,7 @@ twopie = 2*pi*exp(1)
 
 # Return stochastic complexity of the observed sequence given predictor features
 # (sometimes containing side information from another sequence, but usually only
-# shifted data from the same sequence). The number of columns in sequence_predictors
-# is always a multiple of the number of columns in observed_sequence because
-# the side information always contains all the same features.
+# shifted data from the same sequence).
 evaluate_SC <- function(sequence_predictors, observed_sequence) {
     frames <- nrow(observed_sequence)
     num_features <- ncol(observed_sequence)
@@ -132,7 +130,7 @@ evaluate_residual_shared_information <- function(residuals_a, residuals_b, n) {
 # Returns shared information calculated with the "residuals of residuals" method.
 # Parameters:
 # - a, b    sequences
-# - index   second step size for the AR model
+# - index   desired size of the second step in the AR model
 shared_information_by_residuals <- function(a,b,index) {
     n <- nrow(a) - index
 
@@ -149,6 +147,9 @@ shared_information_by_residuals <- function(a,b,index) {
 }
 
 # Complexity of a single (multivariate) sequence
+# Parameters:
+# - a       sequence
+# - index   desired size of the second step in the AR model
 SC <- function(a, index) {
     n <- nrow(a)-index
     if (n < 1)
@@ -163,6 +164,10 @@ SC <- function(a, index) {
 }
 
 # Complexity of a (multivariate) sequence given another
+# Parameters:
+# - a       primary sequence
+# - b       side information equence
+# - index   desired size of the second step in the AR model
 SCcond <- function(a,b, index) {
     n <- min(nrow(a), nrow(b))-index
     SC <- evaluate_SC(cbind(a[1:n,],a[1:n+index-1,],b[1:n+index,]), a[1:n+index,])
@@ -177,6 +182,12 @@ SCcond <- function(a,b, index) {
 # either symmetrically or asymmetrically.
 #
 # Returns the altered sequences as a list with two elements.
+#
+# Parameters:
+# - a, b        sequences (order matters if asymmetric removal
+#               is used)
+# - symmetric   boolean value indicating removal type
+#               (TRUE = symmetric, FALSE = asymmetric)
 remove_duplicate_frames <- function(a, b, symmetric = FALSE) {
     skipa <- rowSums((a[2:nrow(a),]-a[1:(nrow(a)-1),])^2) == 0
     skipa <- c(FALSE, skipa)
@@ -206,6 +217,9 @@ normalize_features <- function(a) {
 }
 
 # Add noise to the features of a matrix.
+# Parameters:
+# - a               seuqence matrix
+# - noise_coeff     coefficient for standard deviation
 add_noise_to_features <- function(a, noise_coeff) {
     features <- ncol(a)
     for (k in 1:features) {
@@ -216,6 +230,8 @@ add_noise_to_features <- function(a, noise_coeff) {
 }
 
 # Returns a matrix containing the chosen most significant eigenvectors
+# Parameters:
+# - data    data matrix
 pca <- function(data) {
     principal_components <- prcomp(data, retx = TRUE, center = TRUE, scale. = TRUE)
 
@@ -235,6 +251,13 @@ pca <- function(data) {
 }
 
 # Returns throughput determined by residuals of residuals.
+#
+# Parameters:
+# - a, b        sequences
+# - fps         frames per second
+# - features    return throughput and shared information for individual
+#               features
+# - index       desired size of the second step in the AR model
 residual_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
     lena <- nrow(a)
 
@@ -258,6 +281,13 @@ residual_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
 
 # Returns throughput calculated in the manner described in the original
 # arxiv paper draft.
+#
+# Parameters:
+# - a, b        sequences
+# - fps         frames per second
+# - features    return throughput and shared information for individual
+#               features
+# - index       desired size of the second step in the AR model
 original_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
     length_a <- nrow(a)
     SC_a <- SC(a, index)
@@ -298,6 +328,14 @@ original_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
 }
 
 # Calculate throughput for a given pair of matrices.
+#
+# Parameters:
+# - a, b        sequences
+# - fps         frames per second
+# - residuals   use the "residuals of residuals" method
+# - features    return throughput and shared information for individual
+#               features
+# - index       desired size of the second step in the AR model
 throughput <- function(a, b, fps = 120, pca = FALSE, residuals = TRUE,
     features = FALSE, index = 2) {
 
