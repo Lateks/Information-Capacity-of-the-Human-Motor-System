@@ -116,11 +116,20 @@ pair_residual_complexity <- function(a, b, pairnumber, fps, pca = FALSE, feature
         eigenvectors <- pca(a)
         a <- a %*% eigenvectors
         b <- b %*% eigenvectors
+
+        for (i in features) {
+            if (i != 0) {
+                dev.new()
+                par(mfcol = c(1, 2))
+                plot(a[,i], main = sprintf("Aligned residuals after PCA, feature %d", i))
+                plot(b[,i], main = sprintf("Aligned residuals after PCA, feature %d", i))
+            }
+        }
     }
 
     results_a <- evaluate_residual_shared_information(a, b, n)
 
-    if (features[1] == 0) {
+    if (length(features) > 0 && features[1] == 0) {
         print(results_a$feature_shared / log(2.0))
     }
     else {
@@ -202,7 +211,7 @@ evaluate_pair <- function(seqnum1, seqnum2, aligneddir = "aligneddata", fps = 12
 # - fps             frames per second in the given sequences
 # - pca             use principal components analysis
 evaluate_residual_complexity <- function(aligneddir = "aligneddata", fps = 120,
-    pca = FALSE, plotfeatures = c())
+    pca = FALSE)
 {
     filenames <- dir(aligneddir, "^[[:digit:]]+_ali_[[:digit:]]+.txt$")
     sequences <- length(filenames)
