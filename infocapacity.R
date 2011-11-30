@@ -106,7 +106,7 @@ evaluate_residual_shared_information <- function(residuals_a, residuals_b, n) {
     total_shared <- 0
     total_RSS <- 0
     total_RSS_residual <- 0
-    feature_shared <- array(0, n)
+    feature_shared <- array(0, ncol(residuals_a))
 
     for (i in 1:ncol(residuals_a)) {
         lm.ra = lm(residuals_a[, i] ~ residuals_b[, i])
