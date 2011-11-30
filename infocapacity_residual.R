@@ -106,7 +106,7 @@ cut_to_equal_length <- function(a, b) {
 # Helper function for evaluate_residual complexity.
 # Parameters:
 # - a, b    aligned residual sequences
-pair_residual_complexity <- function(a, b, pairnumber, fps, pca = FALSE) {
+pair_residual_complexity <- function(a, b, pairnumber, fps, pca = FALSE, features = c()) {
     data <- remove_duplicate_frames(a, b)
     a <- data[[1]]
     b <- data[[2]]
@@ -119,6 +119,15 @@ pair_residual_complexity <- function(a, b, pairnumber, fps, pca = FALSE) {
     }
 
     results_a <- evaluate_residual_shared_information(a, b, n)
+
+    if (features[1] == 0) {
+        print(results_a$feature_shared / log(2.0))
+    }
+    else {
+        for (i in features)
+            print(sprintf("Feature %d shared information in bits: %f", i, results_a$feature_shared[i] / log(2.0)))
+    }
+
     return(construct_result_vector(pairnumber, results_a, fps, n))
 }
 
@@ -127,7 +136,7 @@ load_sequence <- function(sequence_number) {
 }
 
 plot_features <- function(featurenums, origa_num, origb_num, aligneda, alignedb, residuals_a, residuals_b) {
-    if (length(featurenums) < 1)
+    if ((length(featurenums) < 1) || (length(featurenums) == 1 && featurenums[1] == 0))
         return()
 
     origa <- load_sequence(origa_num)
@@ -167,12 +176,14 @@ evaluate_pair <- function(seqnum1, seqnum2, aligneddir = "aligneddata", fps = 12
     residuals_a <- residuals[[1]]
     residuals_b <- residuals[[2]]
 
-    plot_features(plotfeatures, seqnum1, seqnum2, a, b, residuals_a, residuals_b)
+    if (!pca) {
+        plot_features(plotfeatures, seqnum1, seqnum2, a, b, residuals_a, residuals_b)
+    }
 
     results_a <- pair_residual_complexity(residuals_a, residuals_b, seqnum1,
-        pca = pca, fps = fps)
+        pca = pca, fps = fps, features = plotfeatures)
     results_b <- pair_residual_complexity(residuals_b, residuals_a, seqnum2,
-        pca = pca, fps = fps)
+        pca = pca, fps = fps, features = plotfeatures)
 
     return(rbind(results_a, results_b, deparse.level = 0))
 }
