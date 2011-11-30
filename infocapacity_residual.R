@@ -3,9 +3,9 @@ source("infocapacity.R")
 # Returns the residuals for the given sequence as a data frame.
 # Parameters:
 # - sequencefile    name of the file containing the coordinate sequence
-calculate_residuals <- function(sequencefile)
+calculate_residuals <- function(sequence_num)
 {
-    sequence <- normalize_features(read.table(sequencefile))
+    sequence <- normalize_features(load_sequence(sequence_num))
     n <- nrow(sequence) - 2
 
     residuals <- evaluate_residuals(cbind(sequence[1:n,],sequence[1:n+1,]), sequence[1:n+2,])
@@ -27,8 +27,9 @@ construct_result_vector <- function(sequence_index, results, fps, seq_length)
 {
     quotient <- results$total_RSS / results$total_RSS_residual
     throughput <- results$total_shared / seq_length * fps / log(2.0)
+    shared_information_bits <- results$total_shared / log(2.0)
 
-    return(c(throughput, results$total_shared, results$total_RSS, results$total_RSS_residual, quotient))
+    return(c(throughput, shared_information_bits, results$total_RSS, results$total_RSS_residual, quotient))
 }
 
 # Returns the index of the third frame of the original sequence
@@ -77,6 +78,18 @@ align_residuals <- function(sequence, residuals)
     return(aligned)
 }
 
+# Returns the residuals for a given sequence, aligned according
+# to a pre-made residual alignment.
+# Parameters:
+# - sequencefile     the name of the file containing the original
+#                    coordinate sequence
+# - aligned_sequence the same sequence after CTW
+get_aligned_residuals <- function(sequence_num, aligned_sequence) {
+    residuals <- calculate_residuals(sequence_num)
+    aligned_residuals <- align_residuals(aligned_sequence, residuals)
+    return(aligned_residuals)
+}
+
 # Cuts two sequences to equal length by removing frames from the
 # beginning.
 # Parameters:
@@ -88,18 +101,6 @@ cut_to_equal_length <- function(a, b) {
     if (diff > 0)
         a <- a[(diff+1):nrow(a),]
     return(list(a, b))
-}
-
-# Returns the residuals for a given sequence, aligned according
-# to a pre-made residual alignment.
-# Parameters:
-# - sequencefile     the name of the file containing the original
-#                    coordinate sequence
-# - aligned_sequence the same sequence after CTW
-get_aligned_residuals <- function(sequencefile, aligned_sequence) {
-    residuals <- calculate_residuals(sequencefile)
-    aligned_residuals <- align_residuals(aligned_sequence, residuals)
-    return(aligned_residuals)
 }
 
 # Helper function for evaluate_residual complexity.
@@ -121,19 +122,56 @@ pair_residual_complexity <- function(a, b, pairnumber, fps, pca = FALSE) {
     return(construct_result_vector(pairnumber, results_a, fps, n))
 }
 
-evaluate_pair <- function(seqnum1, seqnum2, aligneddir = "aligneddata", fps = 120, pca = FALSE)
+load_sequence <- function(sequence_number) {
+    return(read.table(sprintf("%02d.txt", sequence_number)))
+}
+
+plot_features <- function(featurenums, origa_num, origb_num, aligneda, alignedb, residuals_a, residuals_b) {
+    if (length(featurenums) < 1)
+        return()
+
+    origa <- load_sequence(origa_num)
+    origb <- load_sequence(origb_num)
+    origresiduals_a <- calculate_residuals(origa_num)
+    origresiduals_b <- calculate_residuals(origb_num)
+
+    for (i in featurenums) {
+        dev.new()
+        par(mfcol = c(3, 2))
+
+        # Plot originals
+        plot(origa[,i], main = sprintf("Original sequence, feature %d", i))
+        points(origb[,i], col = "blue")
+
+        plot(origresiduals_a[,i], main = sprintf("Original residuals, sequence %d, feature %d", origa_num, i))
+        plot(origresiduals_b[,i], main = sprintf("Original residuals, sequence %d, feature %d", origb_num, i))
+
+        # Plot aligned
+        plot(aligneda[,i], main = sprintf("Aligned sequence, feature %d", i))
+        points(alignedb[,i], col = "blue")
+
+        plot(residuals_a[,i], main = sprintf("Aligned residuals, sequence %d, feature %d", origa_num, i))
+        plot(residuals_b[,i], main = sprintf("Aligned residuals, sequence %d, feature %d", origb_num, i))
+    }
+}
+
+evaluate_pair <- function(seqnum1, seqnum2, aligneddir = "aligneddata", fps = 120, pca = FALSE, plotfeatures = c())
 {
     a <- as.matrix(read.table(sprintf("%s/%d_ali_%d.txt", aligneddir, seqnum1, seqnum2)))
     b <- as.matrix(read.table(sprintf("%s/%d_ali_%d.txt", aligneddir, seqnum2, seqnum1)))
 
-    residuals_a <- get_aligned_residuals(sprintf("%02d.txt", seqnum1), a)
-    residuals_b <- get_aligned_residuals(sprintf("%02d.txt", seqnum2), b)
+    residuals_a <- get_aligned_residuals(seqnum1, a)
+    residuals_b <- get_aligned_residuals(seqnum2, b)
 
     residuals <- cut_to_equal_length(residuals_a, residuals_b)
+    residuals_a <- residuals[[1]]
+    residuals_b <- residuals[[2]]
 
-    results_a <- pair_residual_complexity(residuals[[1]], residuals[[2]], seqnum1,
+    plot_features(plotfeatures, seqnum1, seqnum2, a, b, residuals_a, residuals_b)
+
+    results_a <- pair_residual_complexity(residuals_a, residuals_b, seqnum1,
         pca = pca, fps = fps)
-    results_b <- pair_residual_complexity(residuals[[2]], residuals[[1]], seqnum2,
+    results_b <- pair_residual_complexity(residuals_b, residuals_a, seqnum2,
         pca = pca, fps = fps)
 
     return(rbind(results_a, results_b, deparse.level = 0))
@@ -153,7 +191,7 @@ evaluate_pair <- function(seqnum1, seqnum2, aligneddir = "aligneddata", fps = 12
 # - fps             frames per second in the given sequences
 # - pca             use principal components analysis
 evaluate_residual_complexity <- function(aligneddir = "aligneddata", fps = 120,
-    pca = FALSE)
+    pca = FALSE, plotfeatures = c())
 {
     filenames <- dir(aligneddir, "^[[:digit:]]+_ali_[[:digit:]]+.txt$")
     sequences <- length(filenames)
@@ -164,7 +202,7 @@ evaluate_residual_complexity <- function(aligneddir = "aligneddata", fps = 120,
         j = 2 * i - 1
         k = j + 1
         all_results[j:k,] <- evaluate_pair(j, k, aligneddir = aligneddir,
-            fps = fps, pca = pca)
+            fps = fps, pca = pca, plotfeatures = plotfeatures)
     }
 
     return(all_results)
