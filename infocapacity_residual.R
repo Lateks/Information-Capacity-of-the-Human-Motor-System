@@ -227,3 +227,35 @@ evaluate_residual_complexity <- function(aligneddir = "aligneddata", fps = 120,
 
     return(all_results)
 }
+
+combinations <- function(n, k) {
+    return(factorial(n) / (factorial(k) * factorial(n - k)))
+}
+
+subdir_based_residual_complexity <- function(fps = 120, pca = FALSE) {
+    subdirs <- dir(".", "^[[:digit:]][[:digit:]]+$")
+    results <- list()
+    for (i in 1:length(subdirs)) {
+        setwd(subdirs[i])
+        sequences <- length(dir(".", "^[[:digit:]]+.txt$"))
+        rownames <- c()
+        combos <- combinations(sequences, 2) * 2
+        all_results <- matrix(nrow = combos, ncol = 5,
+            dimnames = list(1:combos, c("TP", "shared", "RSS", "RSS_resid", "quotient")))
+        rows <- c(1, 2)
+
+        for (j in 1:(sequences-1)) {
+            for (k in (j+1):sequences) {
+                rownames <- c(rownames, sprintf("(%d, %d)", j, k))
+                rownames <- c(rownames, sprintf("(%d, %d)", k, j))
+
+                all_results[rows[1]:rows[2],] <- evaluate_pair(j, k, fps = fps, pca = pca)
+                rows <- rows + 2
+            }
+        }
+        rownames(all_results) <- rownames
+        results[[i]] <- list(subdirs[i], all_results);
+        setwd("..")
+    }
+    return(results)
+}
