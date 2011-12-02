@@ -222,7 +222,7 @@ evaluate_residual_complexity <- function(aligneddir = "aligneddata", fps = 120,
         j = 2 * i - 1
         k = j + 1
         all_results[j:k,] <- evaluate_pair(j, k, aligneddir = aligneddir,
-            fps = fps, pca = pca, plotfeatures = plotfeatures)
+            fps = fps, pca = pca)
     }
 
     return(all_results)
