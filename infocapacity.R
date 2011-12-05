@@ -359,7 +359,7 @@ throughput <- function(a, b, fps = 120, pca = FALSE, residuals = TRUE,
 # See the dir_throughput function for descriptions of optional parameters.
 pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
     amc = FALSE, residuals = TRUE, features = FALSE, warnings = FALSE,
-    noise = 0, index = 2, symmetric = FALSE, normalize = TRUE) {
+    noise = 0, index = 2, symmetric = FALSE) {
 
     use_warnings <<- warnings
 
@@ -470,10 +470,10 @@ dir_throughput <- function(subdir = "aligneddata", fps = 120, pca = FALSE, amc =
 
         results <- pair_throughput(file1, file2, fps = fps, pca = pca,
             amc = amc, residuals = residuals, features = features, warnings = warnings,
-            noise = noise, index = index, symmetric = symmetric, normalize = normalize)
+            noise = noise, index = index, symmetric = symmetric)
         inverse_results <- pair_throughput(file2, file1, fps = fps, pca = pca,
             amc = amc, residuals = residuals, features = features, warnings = warnings,
-            noise = noise, index = index, symmetric = symmetric, normalize = normalize)
+            noise = noise, index = index, symmetric = symmetric)
 
         total_throughputs[i,1] <- results$throughput
         total_throughputs[i,2] <- inverse_results$throughput
