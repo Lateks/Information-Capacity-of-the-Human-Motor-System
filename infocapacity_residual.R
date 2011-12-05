@@ -140,10 +140,23 @@ pair_residual_complexity <- function(a, b, pairnumber, fps, pca = FALSE, feature
     return(construct_result_vector(pairnumber, results_a, fps, n))
 }
 
+# Loads and returns the sequence denoted by the given
+# sequence number (assumed to be in the current working directory)
 load_sequence <- function(sequence_number) {
     return(read.table(sprintf("%02d.txt", sequence_number)))
 }
 
+# Plots the features (original and residual, aligned and unaligned)
+# given by the vector featurenums.
+#
+# Parameters:
+# - featurenums     vector containing the numbers of the features to plot
+# - origa_num       number of the original sequence a
+# - origb_num       number of the original sequence b
+# - aligneda        sequence a aligned with b
+# - alignedb        sequence b aligned with a
+# - residuals_a     the aligned residuals for sequence a
+# - residuals_b     the aligned residuals for sequence b
 plot_features <- function(featurenums, origa_num, origb_num, aligneda, alignedb, residuals_a, residuals_b) {
     if ((length(featurenums) < 1) || (length(featurenums) == 1 && featurenums[1] == 0))
         return()
@@ -173,6 +186,22 @@ plot_features <- function(featurenums, origa_num, origb_num, aligneda, alignedb,
     }
 }
 
+# Evaluates residual complexity for a given pair of sequences
+# (original sequence files assumed to be in the working directory
+# and aligned sequences in the subdirectory given by the aligneddir
+# parameter).
+#
+# Parameters:
+# - seqnum1, seqnum2    numbers of the sequences
+# - aligneddir          directory containing the aligned data
+# - fps                 frames per second in the sequences
+# - pca                 use PCA (default FALSE)
+# - plotfeatures        a vector of feature numbers to plot
+#                       (the types of plots given depend on whether
+#                       PCA is used or not) and print feature shared
+#                       information for (use 0 as the first element
+#                       to print feature shared information for all
+#                       features instead of just the plotted ones)
 evaluate_pair <- function(seqnum1, seqnum2, aligneddir = "aligneddata", fps = 120, pca = FALSE, plotfeatures = c())
 {
     a <- as.matrix(read.table(sprintf("%s/%d_ali_%d.txt", aligneddir, seqnum1, seqnum2)))
@@ -228,10 +257,43 @@ evaluate_residual_complexity <- function(aligneddir = "aligneddata", fps = 120,
     return(all_results)
 }
 
+# Calculate the number of k-combinations in a set with n elements.
 combinations <- function(n, k) {
     return(factorial(n) / (factorial(k) * factorial(n - k)))
 }
 
+# Calculate residual complexity assuming that each sequence type is in
+# its own subdirectory. The original sequence files for different
+# sequences should be in subdirectories named 01, 02, 03 etc.
+# These subdirectories in turn should all have a subdirectory called
+# aligneddata that contains all sequence repetitions aligned with
+# each other. See below for an example.
+#
+# Parameters:
+# - fps     frames per second in the sequences
+# - pca     use PCA (default FALSE)
+#
+# Example of the directory tree:
+# - working directory
+#   |
+#   -- 01 -- contains three repetitions of sequence #1
+#   |  |
+#   |  * 01.txt
+#   |  * 02.txt
+#   |  * 03.txt
+#   |  -- aligneddata
+#   |     |
+#   |     * 1_ali_2.txt
+#   |     * 1_ali_3.txt
+#   |     * ...
+#   -- 02 -- contains two repetitions of sequence #2
+#      |
+#      * 01.txt
+#      * 02.txt
+#      -- aligneddata
+#         |
+#         * 1_ali_2.txt
+#         * 2_ali_1.txt
 subdir_based_residual_complexity <- function(fps = 120, pca = FALSE) {
     subdirs <- dir(".", "^[[:digit:]][[:digit:]]+$")
     results <- list()
