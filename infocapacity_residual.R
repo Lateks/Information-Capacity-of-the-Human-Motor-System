@@ -18,12 +18,10 @@ calculate_residuals <- function(sequence_num)
 # places in the matrix and calculates throughput which is also placed
 # in the matrix.
 # Parameters:
-# - sequence_index      index of the sequence, which indicates which row
-#                       of the result matrix the results should be placed on
 # - results             a result list given by evaluate_residual_shared_information
 # - fps                 frames per second (to calculate throughut)
 # - seq_length          sequence length (after alignment and duplicate removal)
-construct_result_vector <- function(sequence_index, results, fps, seq_length)
+construct_result_vector <- function(results, fps, seq_length)
 {
     quotient <- results$total_RSS / results$total_RSS_residual
     throughput <- results$total_shared / seq_length * fps / log(2.0)
@@ -106,7 +104,7 @@ cut_to_equal_length <- function(a, b) {
 # Helper function for evaluate_residual complexity.
 # Parameters:
 # - a, b    aligned residual sequences
-pair_residual_complexity <- function(a, b, pairnumber, fps, pca = FALSE, features = c()) {
+pair_residual_complexity <- function(a, b, fps, pca = FALSE, features = c()) {
     data <- remove_duplicate_frames(a, b)
     a <- data[[1]]
     b <- data[[2]]
@@ -137,7 +135,7 @@ pair_residual_complexity <- function(a, b, pairnumber, fps, pca = FALSE, feature
             print(sprintf("Feature %d shared information in bits: %f", i, results_a$feature_shared[i] / log(2.0)))
     }
 
-    return(construct_result_vector(pairnumber, results_a, fps, n))
+    return(construct_result_vector(results_a, fps, n))
 }
 
 # Loads and returns the sequence denoted by the given
@@ -218,9 +216,9 @@ evaluate_pair <- function(seqnum1, seqnum2, aligneddir = "aligneddata", fps = 12
         plot_features(plotfeatures, seqnum1, seqnum2, a, b, residuals_a, residuals_b)
     }
 
-    results_a <- pair_residual_complexity(residuals_a, residuals_b, seqnum1,
+    results_a <- pair_residual_complexity(residuals_a, residuals_b,
         pca = pca, fps = fps, features = plotfeatures)
-    results_b <- pair_residual_complexity(residuals_b, residuals_a, seqnum2,
+    results_b <- pair_residual_complexity(residuals_b, residuals_a,
         pca = pca, fps = fps, features = plotfeatures)
 
     return(rbind(results_a, results_b, deparse.level = 0))
