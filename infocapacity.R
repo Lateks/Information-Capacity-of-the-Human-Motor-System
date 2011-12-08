@@ -414,14 +414,14 @@ pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
 # start_step    the starting value for the AR model step size (default 2)
 # end_step      the end value for the AR model step size (default 120)
 # interval      the interval between step sizes in the trials (default 1)
-evaluate_RSS <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FALSE,
-    residuals = TRUE, features = FALSE, warnings = FALSE, noise = 0, symmetric = FALSE,
-    start_index = 2, end_index = 120, interval = 1) {
+evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE,
+    amc = FALSE, residuals = TRUE, features = FALSE, warnings = FALSE, noise = 0,
+    symmetric = FALSE, start_step = 2, end_step = 120, interval = 1) {
 
-    size <- (end_index-start_index)/step_index+1
+    size <- (end_step-start_step)/interval+1
     results <- array(0, c(size, 5));
     colnames(results) <- c("index","RSS","RSS_conditional","RSS / RSS_cond","TP")
-    n <- 1
+    i <- 1
 
     for (index in seq(start_index, end_index, interval)) {
         print(index)
@@ -430,12 +430,12 @@ evaluate_RSS <- function(filename1, filename2, fps = 120, pca = FALSE, amc = FAL
             residuals = residuals, features = features, warnings = warnings,
             noise = noise, index = index, symmetric = symmetric)
 
-        results[n,1] <- index
-        results[n,2] <- TP$RSS
-        results[n,3] <- TP$RSS_residual
-        results[n,4] <- TP$quotient
-        results[n,5] <- TP$throughput
-        n <- n+1
+        results[i,1] <- index
+        results[i,2] <- TP$RSS
+        results[i,3] <- TP$RSS_residual
+        results[i,4] <- TP$quotient
+        results[i,5] <- TP$throughput
+        i <- i+1
     }
 
     return(results)
