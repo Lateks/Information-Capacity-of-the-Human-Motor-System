@@ -5,7 +5,7 @@ source("infocapacity.R")
 # - sequencefile    name of the file containing the coordinate sequence
 calculate_residuals <- function(sequence_num)
 {
-    sequence <- normalize_features(load_sequence(sequence_num))
+    sequence <- load_sequence(sequence_num)
     n <- nrow(sequence) - 2
 
     residuals <- evaluate_residuals(cbind(sequence[1:n,],sequence[1:n+1,]), sequence[1:n+2,])
@@ -111,9 +111,9 @@ pair_residual_complexity <- function(a, b, fps, pca = FALSE, features = c()) {
     n <- nrow(a)
 
     if (pca) {
-        eigenvectors <- pca(a)
-        a <- a %*% eigenvectors
-        b <- b %*% eigenvectors
+        reduced <- pca(a, b)
+        a <- reduced[[1]]
+        b <- reduced[[2]]
 
         for (i in features) {
             if (i != 0) {

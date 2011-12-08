@@ -229,25 +229,44 @@ add_noise_to_features <- function(a, noise_coeff) {
     return(a)
 }
 
-# Returns a matrix containing the chosen most significant eigenvectors
-# Parameters:
-# - data    data matrix
-pca <- function(data) {
-    principal_components <- prcomp(data, retx = TRUE, center = TRUE, scale. = TRUE)
-
+choose_number_of_eigenvectors <- function(sdevs) {
     sum <- 0
     eigenvectors <- 0
-    threshold <- 0.9*sum(principal_components$sdev**2)
-    for (k in 1:length(principal_components$sdev)) {
-        sum <- sum + principal_components$sdev[k]**2
+    threshold <- 0.9*sum(sdevs**2)
+
+    for (k in 1:length(sdevs)) {
+        sum <- sum + sdevs[k]**2
         eigenvectors <- k
         if (sum >= threshold)
             break
     }
 
-    eigenvectors <- principal_components$rotation[,1:eigenvectors]
-
     return(eigenvectors)
+}
+
+# Returns a list containing both of the given matrices after
+# being multiplied with the chosen eigenvectors (calculated
+# from the matrix data).
+#
+# Parameters:
+# - data        data matrix to perform PCA to
+# - side_data   another matrix to multiply with the same eigenvectors
+pca <- function(data, side_data) {
+    # Normalization is done here instead of passing center = TRUE and
+    # scale. = TRUE to prcomp because multiplication with eigenvectors
+    # is done "manually" (outside of prcomp) and therefore at least mean
+    # normalization has to be done on the original data anyway.
+    data <- normalize_features(data)
+    side_data <- normalize_features(side_data)
+
+    principal_components <- prcomp(data)
+    num_eigenvecs <- choose_number_of_eigenvectors(principal_components$sdev)
+
+    eigenvectors <- principal_components$rotation[,1:num_eigenvecs]
+    reduced_data <- data %*% eigenvectors
+    reduced_side_data <- side_data %*% eigenvectors
+
+    return(list(reduced_data, reduced_side_data))
 }
 
 # Returns throughput determined by residuals of residuals.
@@ -342,9 +361,9 @@ throughput <- function(a, b, fps = 120, pca = FALSE, residuals = TRUE,
     lena <- nrow(a)
 
     if (pca) {
-        eigenvectors <- pca(a)
-        a <- a %*% eigenvectors
-        b <- b %*% eigenvectors
+        reduced <- pca(a, b)
+        a <- reduced[[1]]
+        b <- reduced[[2]]
     }
 
     if (residuals)
@@ -379,9 +398,6 @@ pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
 
     if (noise > 0)
         a <- add_noise_to_features(a, noise)
-
-    a <- normalize_features(a)
-    b <- normalize_features(b)
 
     use_warnings <<- FALSE
     return(throughput(a, b, fps = fps, pca = pca, residuals = residuals,
