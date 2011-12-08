@@ -101,12 +101,12 @@ evaluate_residuals <- function(sequence_predictors, observed_sequence) {
 # Evaluates shared information using the "residuals of residuals" method.
 # Parameters:
 # - residuals_a, residuals_b    residual sequences (data frames or matrices)
-# - n                           number of frames in the sequences
-evaluate_residual_shared_information <- function(residuals_a, residuals_b, n) {
+evaluate_residual_shared_information <- function(residuals_a, residuals_b) {
     total_shared <- 0
     total_RSS <- 0
     total_RSS_residual <- 0
     feature_shared <- array(0, ncol(residuals_a))
+    n <- nrow(residuals_a)
 
     for (i in 1:ncol(residuals_a)) {
         lm.ra = lm(residuals_a[, i] ~ residuals_b[, i])
@@ -137,7 +137,7 @@ shared_information_by_residuals <- function(a,b,index) {
     residuals_a <- evaluate_residuals(cbind(a[1:n,],a[1:n+index-1,]), a[1:n+index,])
     residuals_b <- evaluate_residuals(cbind(b[1:n,],b[1:n+index-1,]), b[1:n+index,])
 
-    results <- evaluate_residual_shared_information(residuals_a, residuals_b, n)
+    results <- evaluate_residual_shared_information(residuals_a, residuals_b)
 
     quotient <- results$total_RSS / results$total_RSS_residual
 

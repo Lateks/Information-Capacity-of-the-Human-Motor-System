@@ -125,7 +125,7 @@ pair_residual_complexity <- function(a, b, fps, pca = FALSE, features = c()) {
         }
     }
 
-    results_a <- evaluate_residual_shared_information(a, b, n)
+    results_a <- evaluate_residual_shared_information(a, b)
 
     if (length(features) > 0 && features[1] == 0) {
         print(results_a$feature_shared / log(2.0))
