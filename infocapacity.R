@@ -373,17 +373,21 @@ throughput <- function(a, b, fps = 120, pca = FALSE, residuals = TRUE,
     return(original_throughput(a, b, fps = fps , features = features, index = index))
 }
 
+load_aligned <- function(seqnum1, seqnum2) {
+    return(read.table(sprintf("aligneddata/%d_ali_%d.txt", seqnum1, seqnum2)))
+}
+
 # Calculate throughput for a given pair of files.
 #
 # See the dir_throughput function for descriptions of optional parameters.
-pair_throughput <- function(filename1, filename2, fps = 120, pca = FALSE,
+pair_throughput <- function(seqnum1, seqnum2, fps = 120, pca = FALSE,
     amc = FALSE, residuals = TRUE, features = FALSE, warnings = FALSE,
     noise = 0, index = 2, symmetric = FALSE) {
 
     use_warnings <<- warnings
 
-    a <- read.table(filename1)
-    b <- read.table(filename2)
+    a <- load_aligned(seqnum1, seqnum2)
+    b <- load_aligned(seqnum2, seqnum1)
 
     # Eliminate features with zero variance in AMC format data, usually the
     # fingers of both hands.
@@ -465,7 +469,7 @@ evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE,
 # - index      the step variable for the AR(2) model in the "residuals of residuals"
 #              method
 # - symmetric  remove duplicates symmetrically (default is asymmetric)
-dir_throughput <- function(subdir = "aligneddata", fps = 120, pca = FALSE, amc = FALSE,
+dir_throughput <- function(fps = 120, pca = FALSE, amc = FALSE,
     residuals = TRUE, features = FALSE, warnings = FALSE, noise = 0, index = 2,
     symmetric = FALSE) {
 
@@ -481,13 +485,11 @@ dir_throughput <- function(subdir = "aligneddata", fps = 120, pca = FALSE, amc =
     for (i in 1:(sequences/2)) {
         j = 2 * i - 1
         k = j + 1
-        file1 <- sprintf("%s/%d_ali_%d.txt", subdir, j, k)
-        file2 <- sprintf("%s/%d_ali_%d.txt", subdir, k, j)
 
-        results <- pair_throughput(file1, file2, fps = fps, pca = pca,
+        results <- pair_throughput(j, k, fps = fps, pca = pca,
             amc = amc, residuals = residuals, features = features, warnings = warnings,
             noise = noise, index = index, symmetric = symmetric)
-        inverse_results <- pair_throughput(file2, file1, fps = fps, pca = pca,
+        inverse_results <- pair_throughput(k, j, fps = fps, pca = pca,
             amc = amc, residuals = residuals, features = features, warnings = warnings,
             noise = noise, index = index, symmetric = symmetric)
 
