@@ -270,6 +270,8 @@ combinations <- function(n, k) {
 # Parameters:
 # - fps     frames per second in the sequences
 # - pca     use PCA (default FALSE)
+# - compare boolean value indicating that the throughput results
+#           from earlier methods should be included
 #
 # Example of the directory tree:
 # - working directory
@@ -292,17 +294,23 @@ combinations <- function(n, k) {
 #         |
 #         * 1_ali_2.txt
 #         * 2_ali_1.txt
-subdir_based_residual_complexity <- function(fps = 120, pca = FALSE) {
+subdir_based_residual_complexity <- function(fps = 120, pca = FALSE, compare = FALSE) {
     subdirs <- dir(".", "^[[:digit:]][[:digit:]]+$")
     results <- list()
     for (i in 1:length(subdirs)) {
         setwd(subdirs[i])
         sequences <- length(dir(".", "^[[:digit:]]+.txt$"))
+
         rownames <- c()
         combos <- combinations(sequences, 2) * 2
+        col_names <- c("TP", "shared", "RSS", "RSS_resid", "quotient")
         all_results <- matrix(nrow = combos, ncol = 5,
-            dimnames = list(1:combos, c("TP", "shared", "RSS", "RSS_resid", "quotient")))
+            dimnames = list(1:combos, col_names))
         rows <- c(1, 2)
+
+        if (compare)
+            compare_results <- matrix(nrow = combos, ncol = 2,
+                dimnames = list(1:combos, c("original_TP", "old_residual_TP")))
 
         for (j in 1:(sequences-1)) {
             for (k in (j+1):sequences) {
@@ -310,10 +318,25 @@ subdir_based_residual_complexity <- function(fps = 120, pca = FALSE) {
                 rownames <- c(rownames, sprintf("(%d, %d)", k, j))
 
                 all_results[rows[1]:rows[2],] <- evaluate_pair(j, k, fps = fps, pca = pca)
+
+                if (compare) { # run earlier method versions for the same files
+                    file1 <- sprintf("aligneddata/%d_ali_%d.txt", j, k)
+                    file2 <- sprintf("aligneddata/%d_ali_%d.txt", k, j)
+                    result1 <- pair_throughput(file1, file2, fps = fps, pca = pca, residuals = FALSE)
+                    result2 <- pair_throughput(file2, file1, fps = fps, pca = pca, residuals = FALSE)
+                    compare_results[rows[1],] <- c(result1$throughput, result2$throughput)
+
+                    result3 <- pair_throughput(file1, file2, fps = fps, pca = pca)
+                    result4 <- pair_throughput(file2, file1, fps = fps, pca = pca)
+                    compare_results[rows[2],] <- c(result3$throughput, result4$throughput)
+                }
                 rows <- rows + 2
             }
         }
         rownames(all_results) <- rownames
+        if (compare)
+            all_results <- cbind(all_results, compare_results)
+
         results[[i]] <- list(subdirs[i], all_results);
         setwd("..")
     }
