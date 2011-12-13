@@ -25,7 +25,6 @@
 
 options(width=Sys.getenv("COLUMNS"))
 
-use_warnings = FALSE
 twopie = 2*pi*exp(1)
 
 # Return stochastic complexity of the observed sequence given predictor features
@@ -60,10 +59,6 @@ evaluate_SC <- function(sequence_predictors, observed_sequence) {
         }
 
         res <- qr.resid(predictors, observed_sequence[, i])
-
-        # warning about possibly too low variance
-        if (use_warnings)
-            if (sum(res^2) < .01) print(c(i,sum(res^2)))
 
         residual_sum <- sum(res^2)
         residual_sums[[i]] <- residual_sum
@@ -373,6 +368,8 @@ throughput <- function(a, b, fps = 120, pca = FALSE, residuals = TRUE,
     return(original_throughput(a, b, fps = fps , features = features, index = index))
 }
 
+# Loads the aligned data file "seqnum1_ali_seqnum2.txt" as a data frame
+# and returns it.
 load_aligned <- function(seqnum1, seqnum2) {
     return(read.table(sprintf("aligneddata/%d_ali_%d.txt", seqnum1, seqnum2)))
 }
@@ -381,10 +378,8 @@ load_aligned <- function(seqnum1, seqnum2) {
 #
 # See the dir_throughput function for descriptions of optional parameters.
 pair_throughput <- function(seqnum1, seqnum2, fps = 120, pca = FALSE,
-    residuals = TRUE, features = FALSE, warnings = FALSE,
-    noise = 0, index = 2, symmetric = FALSE) {
-
-    use_warnings <<- warnings
+    residuals = TRUE, features = FALSE, noise = 0, index = 2,
+    symmetric = FALSE) {
 
     a <- load_aligned(seqnum1, seqnum2)
     b <- load_aligned(seqnum2, seqnum1)
@@ -396,7 +391,6 @@ pair_throughput <- function(seqnum1, seqnum2, fps = 120, pca = FALSE,
     if (noise > 0)
         a <- add_noise_to_features(a, noise)
 
-    use_warnings <<- FALSE
     return(throughput(a, b, fps = fps, pca = pca, residuals = residuals,
         features = features, index = index))
 }
@@ -412,7 +406,7 @@ pair_throughput <- function(seqnum1, seqnum2, fps = 120, pca = FALSE,
 # end_step      the end value for the AR model step size (default 120)
 # interval      the interval between step sizes in the trials (default 1)
 evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE,
-    residuals = TRUE, features = FALSE, warnings = FALSE, noise = 0,
+    residuals = TRUE, features = FALSE, noise = 0,
     symmetric = FALSE, start_step = 2, end_step = 120, interval = 1) {
 
     size <- (end_step-start_step)/interval+1
@@ -424,7 +418,7 @@ evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE,
         print(index)
 
         TP <- pair_throughput(filename1, filename2, fps = fps, pca = pca,
-            residuals = residuals, features = features, warnings = warnings,
+            residuals = residuals, features = features,
             noise = noise, index = index, symmetric = symmetric)
 
         results[i,1] <- index
@@ -455,13 +449,12 @@ evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE,
 # - pca        use principal components analysis
 # - residuals  use residuals of residuals to determine complexities
 # - features   also calculate throughput for individual features
-# - warnings   print warnings of low residual variance (to debug NaN results)
 # - noise      noise coefficient (default 0)
 # - index      the step variable for the AR(2) model in the "residuals of residuals"
 #              method
 # - symmetric  remove duplicates symmetrically (default is asymmetric)
 dir_throughput <- function(fps = 120, pca = FALSE, residuals = TRUE,
-    features = FALSE, warnings = FALSE, noise = 0, index = 2,
+    features = FALSE, noise = 0, index = 2,
     symmetric = FALSE) {
 
     files <- dir(".", "^[[:digit:]]+.txt$")
@@ -475,10 +468,10 @@ dir_throughput <- function(fps = 120, pca = FALSE, residuals = TRUE,
         k = j + 1
 
         results <- pair_throughput(j, k, fps = fps, pca = pca,
-            residuals = residuals, features = features, warnings = warnings,
+            residuals = residuals, features = features,
             noise = noise, index = index, symmetric = symmetric)
         inverse_results <- pair_throughput(k, j, fps = fps, pca = pca,
-            residuals = residuals, features = features, warnings = warnings,
+            residuals = residuals, features = features,
             noise = noise, index = index, symmetric = symmetric)
 
         total_throughputs[i,1] <- results$throughput
