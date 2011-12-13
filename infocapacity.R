@@ -452,13 +452,12 @@ evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE,
 # working directory. (Note: all files should be for the same test subject!)
 # Files should be named <sequence number>.txt, e.g. "15.txt".
 #
-# The aligned data should reside in a subdirectory (by default "aligneddata")
+# The aligned data should reside in the subdirectory "aligneddata"
 # in files that are named in the following way:
 #         <seq1 #>_ali_<seq2 #>.txt
 # Example: "14_ali_15.txt".
 #
 # Parameters:
-# - subdir     subdirectory that contains the aligned data (default "aligneddata")
 # - fps        frames per second
 # - pca        use principal components analysis
 # - amc        input data is in AMC format
