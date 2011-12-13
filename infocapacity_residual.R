@@ -13,23 +13,6 @@ calculate_residuals <- function(sequence_num)
     return(residuals)
 }
 
-# Given a result list, a result matrix and other information used in
-# throughput calculation, places the results in the list into their
-# places in the matrix and calculates throughput which is also placed
-# in the matrix.
-# Parameters:
-# - results             a result list given by evaluate_residual_shared_information
-# - fps                 frames per second (to calculate throughut)
-# - seq_length          sequence length (after alignment and duplicate removal)
-construct_result_vector <- function(results, fps, seq_length)
-{
-    quotient <- results$RSS / results$RSS_conditional
-    throughput <- results$total_shared / seq_length * fps / log(2.0)
-    shared_information_bits <- results$total_shared / log(2.0)
-
-    return(c(throughput, shared_information_bits, results$RSS, results$RSS_conditional, quotient))
-}
-
 # Returns the index of the third frame of the original sequence
 # in the aligned sequence given a logical vector where each
 # element indicates whether the corresponding row in the aligned
@@ -297,39 +280,53 @@ subdir_based_residual_complexity <- function(fps = 120, pca = FALSE, compare = F
 
         rownames <- c()
         combos <- combinations(sequences, 2) * 2
-        col_names <- c("TP", "shared", "RSS", "RSS_resid", "quotient")
+        col_names <- c("TP", "shared", "RSS", "RSS_cond", "quotient")
         all_results <- matrix(nrow = combos, ncol = 5,
             dimnames = list(1:combos, col_names))
         rows <- c(1, 2)
 
-        if (compare)
-            compare_results <- matrix(nrow = combos, ncol = 2,
-                dimnames = list(1:combos, c("original_TP", "old_residual_TP")))
+        if (compare) {
+            compare_results_orig <- matrix(nrow = combos, ncol = 5,
+                dimnames = list(1:combos, col_names))
+            compare_results_res <- matrix(nrow = combos, ncol = 5,
+                dimnames = list(1:combos, col_names))
+        }
 
         for (j in 1:(sequences-1)) {
             for (k in (j+1):sequences) {
                 rownames <- c(rownames, sprintf("(%d, %d)", j, k))
                 rownames <- c(rownames, sprintf("(%d, %d)", k, j))
 
-                all_results[rows[1]:rows[2],] <- evaluate_pair(j, k, fps = fps, pca = pca)
+                all_results[rows[1]:rows[2],] <- evaluate_pair(j, k, fps = fps,
+                    pca = pca)
 
                 if (compare) { # run earlier method versions for the same files
-                    result1 <- pair_throughput(j, k, fps = fps, pca = pca, residuals = FALSE)
-                    result2 <- pair_throughput(k, j, fps = fps, pca = pca, residuals = FALSE)
-                    compare_results[rows[1],] <- c(result1$throughput, result2$throughput)
+                    result1 <- pair_throughput(j, k, fps = fps, pca = pca,
+                        residuals = FALSE)
+                    result2 <- pair_throughput(k, j, fps = fps, pca = pca,
+                        residuals = FALSE)
+                    compare_results_orig[rows[1]:rows[2],] <- rbind(result1$results,
+                        result2$results)
 
                     result3 <- pair_throughput(j, k, fps = fps, pca = pca)
                     result4 <- pair_throughput(k, j, fps = fps, pca = pca)
-                    compare_results[rows[2],] <- c(result3$throughput, result4$throughput)
+                    compare_results_res[rows[1]:rows[2],] <- rbind(result3$results,
+                        result4$results)
                 }
                 rows <- rows + 2
             }
         }
         rownames(all_results) <- rownames
-        if (compare)
-            all_results <- cbind(all_results, compare_results)
+        if (compare) {
+            rownames(compare_results_orig) <- rownames
+            rownames(compare_results_res) <- rownames
+            results[[i]] <- list(dir = subdirs[i], new_residual = all_results,
+                old_residual = compare_results_res, original = compare_results_res)
+        }
+        else {
+            results[[i]] <- list(dir = subdirs[i], results = all_results);
+        }
 
-        results[[i]] <- list(subdirs[i], all_results);
         setwd("..")
     }
     return(results)

@@ -27,6 +27,24 @@ options(width=Sys.getenv("COLUMNS"))
 
 twopie = 2*pi*exp(1)
 
+# Given a result list, FPS count and sequence length, generates a
+# vector with throughput, shared information in bits, total sum of
+# residuals, total conditional sum of residuals and the residual
+# quotient. (Vector length is 5.)
+#
+# Parameters:
+# - results             a result list given by evaluate_residual_shared_information
+# - fps                 frames per second (to calculate throughut)
+# - seq_length          sequence length (after alignment and duplicate removal)
+construct_result_vector <- function(results, fps, seq_length)
+{
+    quotient <- results$RSS / results$RSS_conditional
+    throughput <- results$total_shared / seq_length * fps / log(2.0)
+    shared_information_bits <- results$total_shared / log(2.0)
+
+    return(c(throughput, shared_information_bits, results$RSS, results$RSS_conditional, quotient))
+}
+
 # Return stochastic complexity of the observed sequence given predictor features
 # (sometimes containing side information from another sequence, but usually only
 # shifted data from the same sequence).
@@ -134,11 +152,9 @@ shared_information_by_residuals <- function(a,b,index) {
 
     results <- evaluate_residual_shared_information(residuals_a, residuals_b)
 
-    quotient <- results$RSS / results$RSS_conditional
-
     return(list(n = n, total_shared = results$total_shared,
         feature_shared = results$feature_shared, RSS = results$RSS,
-        RSS_conditional = results$RSS_conditional, quotient = quotient))
+        RSS_conditional = results$RSS_conditional))
 }
 
 # Complexity of a single (multivariate) sequence
@@ -277,20 +293,17 @@ residual_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
 
     shared <- shared_information_by_residuals(a, b, index)
     total_shared <- shared$total_shared
-    throughput <- total_shared / lena * fps / log(2.0)
 
     if (features) {
         feature_shared <- shared$feature_shared
         feature_throughputs <- feature_shared / lena * fps / log(2.0)
-        return(list(throughput = throughput, total_shared = total_shared,
-            feature_shared = feature_shared, feature_throughputs = feature_throughputs,
-            RSS = shared$RSS, RSS_conditional = shared$RSS_conditional,
-            quotient = shared$quotient))
+        return(list(total_shared = total_shared, feature_shared = feature_shared,
+            feature_throughputs = feature_throughputs,
+            RSS = shared$RSS, RSS_conditional = shared$RSS_conditional))
     }
 
-    return(list(throughput = throughput, total_shared = total_shared,
-        RSS = shared$RSS, RSS_conditional = shared$RSS_conditional,
-        quotient = shared$quotient))
+    return(list(total_shared = total_shared, RSS = shared$RSS,
+        RSS_conditional = shared$RSS_conditional))
 }
 
 # Returns throughput calculated in the manner described in the original
@@ -303,7 +316,6 @@ residual_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
 #               features
 # - index       desired size of the second step in the AR model
 original_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
-    length_a <- nrow(a)
     SC_a <- SC(a, index)
     SC_a_b <- SCcond(a, b, index)
 
@@ -314,13 +326,12 @@ original_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
     feature_complexity_of_a_cond_b <- SC_a_b$feature_complexity
 
     shared_information <- complexity_of_a - complexity_of_a_cond_b
-    throughput <- shared_information / length_a * fps / log(2.0)
 
     RSS_a <- sum(unlist(SC_a$residual_sums))
     RSS_a_cond_b <- sum(unlist(SC_a_b$residual_sums))
-    quotient <- RSS_a / RSS_a_cond_b
 
     if (features) {
+        length_a <- nrow(a)
         feature_shared_informations <- array(0,ncol(a))
         feature_throughputs <- array(0,ncol(a))
         for (k in 1:ncol(a)) {
@@ -330,14 +341,14 @@ original_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
                 feature_complexity_of_a_cond_b[k]) / length_a * fps / log(2.0)
         }
 
-        return(list(throughput = throughput, total_shared = shared_information,
+        return(list(total_shared = shared_information,
             feature_shared = feature_shared_informations,
             feature_throughputs = feature_throughputs, RSS = RSS_a,
-            RSS_conditional = RSS_a_cond_b, quotient = quotient))
+            RSS_conditional = RSS_a_cond_b))
     }
 
-    return(list(throughput = throughput, total_shared = shared_information,
-        RSS = RSS_a, RSS_conditional = RSS_a_cond_b, quotient = quotient))
+    return(list(total_shared = shared_information, RSS = RSS_a,
+        RSS_conditional = RSS_a_cond_b))
 }
 
 # Calculate throughput for a given pair of matrices.
@@ -351,8 +362,6 @@ original_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
 # - index       desired size of the second step in the AR model
 throughput <- function(a, b, fps = 120, pca = FALSE, residuals = TRUE,
     features = FALSE, index = 2) {
-
-    lena <- nrow(a)
 
     if (pca) {
         reduced <- pca(a, b)
@@ -390,8 +399,12 @@ pair_throughput <- function(seqnum1, seqnum2, fps = 120, pca = FALSE,
     if (noise > 0)
         a <- add_noise_to_features(a, noise)
 
-    return(throughput(a, b, fps = fps, pca = pca, residuals = residuals,
-        features = features, index = index))
+    results <- throughput(a, b, fps = fps, pca = pca, residuals = residuals,
+        features = features, index = index)
+    if (features)
+        return(list(results = construct_result_vector(results, fps, nrow(a)),
+            feature_throughputs = results$feature_throughputs))
+    return(list(results = construct_result_vector(results, fps, nrow(a))))
 }
 
 # For a given pair of files, calculate residual sums and throughputs with
@@ -420,11 +433,7 @@ evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE,
             residuals = residuals, features = features,
             noise = noise, index = index, symmetric = symmetric)
 
-        results[i,1] <- index
-        results[i,2] <- TP$RSS
-        results[i,3] <- TP$RSS_conditional
-        results[i,4] <- TP$quotient
-        results[i,5] <- TP$throughput
+        results[i,] <- TP$results
         i <- i+1
     }
 
@@ -459,12 +468,18 @@ dir_throughput <- function(fps = 120, pca = FALSE, residuals = TRUE,
     files <- dir(".", "^[[:digit:]]+.txt$")
     sequences <- length(files)
 
-    total_throughputs <- array(0, c(sequences/2, 2))
+    col_names <- c("TP", "shared", "RSS", "RSS_cond", "quotient")
+    total_throughputs <- matrix(nrow = sequences, ncol = 5,
+        dimnames = list(1:sequences, col_names))
+    rownames = c()
+
     feature_throughputs <- array(list(NULL), c(sequences/2, 2))
 
     for (i in 1:(sequences/2)) {
         j = 2 * i - 1
         k = j + 1
+        rownames <- c(rownames, sprintf("(%d, %d)", j, k))
+        rownames <- c(rownames, sprintf("(%d, %d)", k, j))
 
         results <- pair_throughput(j, k, fps = fps, pca = pca,
             residuals = residuals, features = features,
@@ -473,14 +488,15 @@ dir_throughput <- function(fps = 120, pca = FALSE, residuals = TRUE,
             residuals = residuals, features = features,
             noise = noise, index = index, symmetric = symmetric)
 
-        total_throughputs[i,1] <- results$throughput
-        total_throughputs[i,2] <- inverse_results$throughput
+        total_throughputs[j,] <- results$results
+        total_throughputs[k,] <- inverse_results$results
 
         if (features) {
             feature_throughputs[i,1] <- list(results$feature_throughputs)
             feature_throughputs[i,2] <- list(inverse_results$feature_throughputs)
         }
     }
+    rownames(total_throughputs) <- rownames
 
     if (features) {
         return(list(total = total_throughputs, feature = feature_throughputs))
