@@ -119,7 +119,7 @@ evaluate_residual_shared_information <- function(residuals_a, residuals_b) {
     }
 
     return(list(total_shared = total_shared, feature_shared = feature_shared,
-        total_RSS = total_RSS, total_RSS_residual = total_RSS_residual))
+        RSS = total_RSS, RSS_conditional = total_RSS_residual))
 }
 
 # Returns shared information calculated with the "residuals of residuals" method.
@@ -134,11 +134,11 @@ shared_information_by_residuals <- function(a,b,index) {
 
     results <- evaluate_residual_shared_information(residuals_a, residuals_b)
 
-    quotient <- results$total_RSS / results$total_RSS_residual
+    quotient <- results$RSS / results$RSS_conditional
 
     return(list(n = n, total_shared = results$total_shared,
-        feature_shared = results$feature_shared, total_RSS = results$total_RSS,
-        total_RSS_residual = results$total_RSS_residual, quotient = quotient))
+        feature_shared = results$feature_shared, RSS = results$RSS,
+        RSS_conditional = results$RSS_conditional, quotient = quotient))
 }
 
 # Complexity of a single (multivariate) sequence
@@ -275,22 +275,22 @@ pca <- function(data, side_data) {
 residual_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
     lena <- nrow(a)
 
-    SI <- shared_information_by_residuals(a, b, index)
-    total_SI <- SI$total_shared
-    throughput <- total_SI / lena * fps / log(2.0)
+    shared <- shared_information_by_residuals(a, b, index)
+    total_shared <- shared$total_shared
+    throughput <- total_shared / lena * fps / log(2.0)
 
     if (features) {
-        feature_SI <- shared_information$feature_shared
-        feature_throughputs <- feature_SI / lena * fps / log(2.0)
-        return(list(total_SI = total_SI, throughput = throughput,
-            feature_SI = feature_SI, feature_throughputs = feature_throughputs,
-            RSS = SI$total_RSS, RSS_residual = SI$total_RSS_residual,
-            quotient = SI$quotient))
+        feature_shared <- shared$feature_shared
+        feature_throughputs <- feature_shared / lena * fps / log(2.0)
+        return(list(throughput = throughput, total_shared = total_shared,
+            feature_shared = feature_shared, feature_throughputs = feature_throughputs,
+            RSS = shared$RSS, RSS_conditional = shared$RSS_conditional,
+            quotient = shared$quotient))
     }
 
-    return(list(throughput = throughput, total_SI = total_SI,
-        RSS = SI$total_RSS, RSS_residual = SI$total_RSS_residual,
-        quotient = SI$quotient))
+    return(list(throughput = throughput, total_shared = total_shared,
+        RSS = shared$RSS, RSS_conditional = shared$RSS_conditional,
+        quotient = shared$quotient))
 }
 
 # Returns throughput calculated in the manner described in the original
@@ -330,14 +330,13 @@ original_throughput <- function(a, b, fps = 120, features = FALSE, index = 2) {
                 feature_complexity_of_a_cond_b[k]) / length_a * fps / log(2.0)
         }
 
-        return(list(total_SI = shared_information,
-            throughput = throughput,
-            feature_SI = feature_shared_informations,
+        return(list(throughput = throughput, total_shared = shared_information,
+            feature_shared = feature_shared_informations,
             feature_throughputs = feature_throughputs, RSS = RSS_a,
-            RSS_residual = RSS_a_cond_b, quotient = quotient))
+            RSS_conditional = RSS_a_cond_b, quotient = quotient))
     }
 
-    return(list(throughput = throughput, total_SI = shared_information,
+    return(list(throughput = throughput, total_shared = shared_information,
         RSS = RSS_a, RSS_conditional = RSS_a_cond_b, quotient = quotient))
 }
 
@@ -423,7 +422,7 @@ evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE,
 
         results[i,1] <- index
         results[i,2] <- TP$RSS
-        results[i,3] <- TP$RSS_residual
+        results[i,3] <- TP$RSS_conditional
         results[i,4] <- TP$quotient
         results[i,5] <- TP$throughput
         i <- i+1

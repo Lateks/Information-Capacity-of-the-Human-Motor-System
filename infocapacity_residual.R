@@ -23,11 +23,11 @@ calculate_residuals <- function(sequence_num)
 # - seq_length          sequence length (after alignment and duplicate removal)
 construct_result_vector <- function(results, fps, seq_length)
 {
-    quotient <- results$total_RSS / results$total_RSS_residual
+    quotient <- results$RSS / results$RSS_conditional
     throughput <- results$total_shared / seq_length * fps / log(2.0)
     shared_information_bits <- results$total_shared / log(2.0)
 
-    return(c(throughput, shared_information_bits, results$total_RSS, results$total_RSS_residual, quotient))
+    return(c(throughput, shared_information_bits, results$RSS, results$RSS_conditional, quotient))
 }
 
 # Returns the index of the third frame of the original sequence
