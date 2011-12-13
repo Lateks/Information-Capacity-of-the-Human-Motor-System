@@ -418,20 +418,20 @@ pair_throughput <- function(seqnum1, seqnum2, fps = 120, pca = FALSE,
 # end_step      the end value for the AR model step size (default 120)
 # interval      the interval between step sizes in the trials (default 1)
 evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE,
-    residuals = TRUE, features = FALSE, noise = 0,
-    symmetric = FALSE, start_step = 2, end_step = 120, interval = 1) {
+    residuals = TRUE, noise = 0, symmetric = FALSE, start_step = 2,
+    end_step = 120, interval = 1) {
 
     size <- (end_step-start_step)/interval+1
     results <- array(0, c(size, 5));
     colnames(results) <- c("index","RSS","RSS_conditional","RSS / RSS_cond","TP")
     i <- 1
 
-    for (index in seq(start_index, end_index, interval)) {
+    for (index in seq(start_step, end_step, interval)) {
         print(index)
 
         TP <- pair_throughput(filename1, filename2, fps = fps, pca = pca,
-            residuals = residuals, features = features,
-            noise = noise, index = index, symmetric = symmetric)
+            residuals = residuals, noise = noise, index = index,
+            symmetric = symmetric)
 
         results[i,] <- TP$results
         i <- i+1
@@ -462,8 +462,7 @@ evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE,
 #              method
 # - symmetric  remove duplicates symmetrically (default is asymmetric)
 dir_throughput <- function(fps = 120, pca = FALSE, residuals = TRUE,
-    features = FALSE, noise = 0, index = 2,
-    symmetric = FALSE) {
+    features = FALSE, noise = 0, index = 2, symmetric = FALSE) {
 
     files <- dir(".", "^[[:digit:]]+.txt$")
     sequences <- length(files)
