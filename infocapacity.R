@@ -381,20 +381,13 @@ load_aligned <- function(seqnum1, seqnum2) {
 #
 # See the dir_throughput function for descriptions of optional parameters.
 pair_throughput <- function(seqnum1, seqnum2, fps = 120, pca = FALSE,
-    amc = FALSE, residuals = TRUE, features = FALSE, warnings = FALSE,
+    residuals = TRUE, features = FALSE, warnings = FALSE,
     noise = 0, index = 2, symmetric = FALSE) {
 
     use_warnings <<- warnings
 
     a <- load_aligned(seqnum1, seqnum2)
     b <- load_aligned(seqnum2, seqnum1)
-
-    # Eliminate features with zero variance in AMC format data, usually the
-    # fingers of both hands.
-    if (amc) {
-        a$V34=NULL; a$V46=NULL;
-        b$V34=NULL; b$V46=NULL;
-    }
 
     data <- remove_duplicate_frames(a, b, symmetric)
     a <- data[[1]]
@@ -419,7 +412,7 @@ pair_throughput <- function(seqnum1, seqnum2, fps = 120, pca = FALSE,
 # end_step      the end value for the AR model step size (default 120)
 # interval      the interval between step sizes in the trials (default 1)
 evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE,
-    amc = FALSE, residuals = TRUE, features = FALSE, warnings = FALSE, noise = 0,
+    residuals = TRUE, features = FALSE, warnings = FALSE, noise = 0,
     symmetric = FALSE, start_step = 2, end_step = 120, interval = 1) {
 
     size <- (end_step-start_step)/interval+1
@@ -430,7 +423,7 @@ evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE,
     for (index in seq(start_index, end_index, interval)) {
         print(index)
 
-        TP <- pair_throughput(filename1, filename2, fps = fps, pca = pca, amc = amc,
+        TP <- pair_throughput(filename1, filename2, fps = fps, pca = pca,
             residuals = residuals, features = features, warnings = warnings,
             noise = noise, index = index, symmetric = symmetric)
 
@@ -448,7 +441,7 @@ evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE,
 # Calculate throughput for all aligned sequence pairs in the directory (by
 # default the current working directory).
 #
-# The function assumes that the original amc or coordinate files are in the
+# The function assumes that the original coordinate files are in the
 # working directory. (Note: all files should be for the same test subject!)
 # Files should be named <sequence number>.txt, e.g. "15.txt".
 #
@@ -460,7 +453,6 @@ evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE,
 # Parameters:
 # - fps        frames per second
 # - pca        use principal components analysis
-# - amc        input data is in AMC format
 # - residuals  use residuals of residuals to determine complexities
 # - features   also calculate throughput for individual features
 # - warnings   print warnings of low residual variance (to debug NaN results)
@@ -468,14 +460,11 @@ evaluate_step_series <- function(filename1, filename2, fps = 120, pca = FALSE,
 # - index      the step variable for the AR(2) model in the "residuals of residuals"
 #              method
 # - symmetric  remove duplicates symmetrically (default is asymmetric)
-dir_throughput <- function(fps = 120, pca = FALSE, amc = FALSE,
-    residuals = TRUE, features = FALSE, warnings = FALSE, noise = 0, index = 2,
+dir_throughput <- function(fps = 120, pca = FALSE, residuals = TRUE,
+    features = FALSE, warnings = FALSE, noise = 0, index = 2,
     symmetric = FALSE) {
 
-    if (amc) {
-        files <- dir(".", "^[[:digit:]]+.amc$")
-    } else
-        files <- dir(".", "^[[:digit:]]+.txt$")
+    files <- dir(".", "^[[:digit:]]+.txt$")
     sequences <- length(files)
 
     total_throughputs <- array(0, c(sequences/2, 2))
@@ -486,10 +475,10 @@ dir_throughput <- function(fps = 120, pca = FALSE, amc = FALSE,
         k = j + 1
 
         results <- pair_throughput(j, k, fps = fps, pca = pca,
-            amc = amc, residuals = residuals, features = features, warnings = warnings,
+            residuals = residuals, features = features, warnings = warnings,
             noise = noise, index = index, symmetric = symmetric)
         inverse_results <- pair_throughput(k, j, fps = fps, pca = pca,
-            amc = amc, residuals = residuals, features = features, warnings = warnings,
+            residuals = residuals, features = features, warnings = warnings,
             noise = noise, index = index, symmetric = symmetric)
 
         total_throughputs[i,1] <- results$throughput
