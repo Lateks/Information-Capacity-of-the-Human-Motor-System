@@ -314,14 +314,12 @@ subdir_based_residual_complexity <- function(fps = 120, pca = FALSE, compare = F
                 all_results[rows[1]:rows[2],] <- evaluate_pair(j, k, fps = fps, pca = pca)
 
                 if (compare) { # run earlier method versions for the same files
-                    file1 <- sprintf("aligneddata/%d_ali_%d.txt", j, k)
-                    file2 <- sprintf("aligneddata/%d_ali_%d.txt", k, j)
-                    result1 <- pair_throughput(file1, file2, fps = fps, pca = pca, residuals = FALSE)
-                    result2 <- pair_throughput(file2, file1, fps = fps, pca = pca, residuals = FALSE)
+                    result1 <- pair_throughput(j, k, fps = fps, pca = pca, residuals = FALSE)
+                    result2 <- pair_throughput(k, j, fps = fps, pca = pca, residuals = FALSE)
                     compare_results[rows[1],] <- c(result1$throughput, result2$throughput)
 
-                    result3 <- pair_throughput(file1, file2, fps = fps, pca = pca)
-                    result4 <- pair_throughput(file2, file1, fps = fps, pca = pca)
+                    result3 <- pair_throughput(j, k, fps = fps, pca = pca)
+                    result4 <- pair_throughput(k, j, fps = fps, pca = pca)
                     compare_results[rows[2],] <- c(result3$throughput, result4$throughput)
                 }
                 rows <- rows + 2
