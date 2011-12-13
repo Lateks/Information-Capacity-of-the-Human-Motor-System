@@ -186,12 +186,10 @@ plot_features <- function(featurenums, origa_num, origb_num, aligneda, alignedb,
 
 # Evaluates residual complexity for a given pair of sequences
 # (original sequence files assumed to be in the working directory
-# and aligned sequences in the subdirectory given by the aligneddir
-# parameter).
+# and aligned sequences in the subdirectory "aligneddata").
 #
 # Parameters:
 # - seqnum1, seqnum2    numbers of the sequences
-# - aligneddir          directory containing the aligned data
 # - fps                 frames per second in the sequences
 # - pca                 use PCA (default FALSE)
 # - plotfeatures        a vector of feature numbers to plot
@@ -200,10 +198,10 @@ plot_features <- function(featurenums, origa_num, origb_num, aligneda, alignedb,
 #                       information for (use 0 as the first element
 #                       to print feature shared information for all
 #                       features instead of just the plotted ones)
-evaluate_pair <- function(seqnum1, seqnum2, aligneddir = "aligneddata", fps = 120, pca = FALSE, plotfeatures = c())
+evaluate_pair <- function(seqnum1, seqnum2, fps = 120, pca = FALSE, plotfeatures = c())
 {
-    a <- as.matrix(read.table(sprintf("%s/%d_ali_%d.txt", aligneddir, seqnum1, seqnum2)))
-    b <- as.matrix(read.table(sprintf("%s/%d_ali_%d.txt", aligneddir, seqnum2, seqnum1)))
+    a <- load_aligned(seqnum1, seqnum2)
+    b <- load_aligned(seqnum2, seqnum1)
 
     residuals_a <- get_aligned_residuals(seqnum1, a)
     residuals_b <- get_aligned_residuals(seqnum2, b)
@@ -233,14 +231,11 @@ evaluate_pair <- function(seqnum1, seqnum2, aligneddir = "aligneddata", fps = 12
 # in that order.
 #
 # Parameters:
-# - aligneddir      the name of the subdirectory containing the aligned
-#                   coordinate sequences ("aligneddata" by default)
 # - fps             frames per second in the given sequences
 # - pca             use principal components analysis
-evaluate_residual_complexity <- function(aligneddir = "aligneddata", fps = 120,
-    pca = FALSE)
+evaluate_residual_complexity <- function(fps = 120, pca = FALSE)
 {
-    filenames <- dir(aligneddir, "^[[:digit:]]+_ali_[[:digit:]]+.txt$")
+    filenames <- dir("aligneddata", "^[[:digit:]]+_ali_[[:digit:]]+.txt$")
     sequences <- length(filenames)
     all_results <- matrix(nrow = sequences, ncol = 5,
         dimnames = list(1:sequences, c("TP", "shared", "RSS", "RSS_resid", "quotient")))
@@ -248,8 +243,7 @@ evaluate_residual_complexity <- function(aligneddir = "aligneddata", fps = 120,
     for (i in 1:(sequences/2)) {
         j = 2 * i - 1
         k = j + 1
-        all_results[j:k,] <- evaluate_pair(j, k, aligneddir = aligneddir,
-            fps = fps, pca = pca)
+        all_results[j:k,] <- evaluate_pair(j, k, fps = fps, pca = pca)
     }
 
     return(all_results)
