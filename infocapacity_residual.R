@@ -167,6 +167,20 @@ plot_features <- function(featurenums, origa_num, origb_num, aligneda, alignedb,
     }
 }
 
+load_aligned_pair_and_residuals <- function(seqnum1, seqnum2) {
+    a <- load_aligned(seqnum1, seqnum2)
+    b <- load_aligned(seqnum2, seqnum1)
+
+    residuals_a <- get_aligned_residuals(seqnum1, a)
+    residuals_b <- get_aligned_residuals(seqnum2, b)
+
+    residuals <- cut_to_equal_length(residuals_a, residuals_b)
+    residuals_a <- residuals[[1]]
+    residuals_b <- residuals[[2]]
+
+    return(list(a, residuals_a, b, residuals_b))
+}
+
 # Evaluates residual complexity for a given pair of sequences
 # (original sequence files assumed to be in the working directory
 # and aligned sequences in the subdirectory "aligneddata").
@@ -183,15 +197,12 @@ plot_features <- function(featurenums, origa_num, origb_num, aligneda, alignedb,
 #                       features instead of just the plotted ones)
 evaluate_pair <- function(seqnum1, seqnum2, fps = 120, pca = FALSE, plotfeatures = c())
 {
-    a <- load_aligned(seqnum1, seqnum2)
-    b <- load_aligned(seqnum2, seqnum1)
+    data <- load_aligned_pair_and_residuals(seqnum1, seqnum2)
+    a <- data[[1]]
+    residuals_a[[2]]
 
-    residuals_a <- get_aligned_residuals(seqnum1, a)
-    residuals_b <- get_aligned_residuals(seqnum2, b)
-
-    residuals <- cut_to_equal_length(residuals_a, residuals_b)
-    residuals_a <- residuals[[1]]
-    residuals_b <- residuals[[2]]
+    b <- data[[3]]
+    residuals_b[[4]]
 
     if (!pca) {
         plot_features(plotfeatures, seqnum1, seqnum2, a, b, residuals_a, residuals_b)
