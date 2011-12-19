@@ -40,6 +40,8 @@ detect_outliers <- function(main_sequence_number, sideinfo_sequence_number, limi
     return(outliers_and_throughputs)
 }
 
+# Tests different limits in the range specified by the limit_range
+# parameter. (Default from 5 to 20.) Interval size is 1.
 test_limits <- function(limit_range = c(5, 20), fps = 120) {
     files <- length(dir("aligneddata", "^[[:digit:]]+_ali_[[:digit:]]+.txt$"))
     par(mfrow = c(ceiling((limit_range[2] - limit_range[1] + 1)/5), 5))
@@ -59,6 +61,9 @@ test_limits <- function(limit_range = c(5, 20), fps = 120) {
     }
 }
 
+# Plots the outlier data, fits a linear model into it
+# (also plotted) and runs ANOVA on the model (results
+# printed into the R terminal).
 plot_model <- function(all_outliers, limit) {
     max_outliers <- max(all_outliers[,1])
     max_tp <- floor(max(all_outliers[,2]))
@@ -77,6 +82,12 @@ plot_model <- function(all_outliers, limit) {
     print(anova(outlierfit))
 }
 
+# Given a matrix containing outlier counts (first column) and
+# feature throughputs (second column), return a matrix with
+# feature throughput means (first column) and standard deviations
+# (second column) for a particular outlier count (indicated by
+# the row number in the result matrix). The number of occurrences
+# of a certain outlier count is returned in the third column.
 means_and_sdevs <- function(all_outliers) {
     max_outliers <- max(all_outliers[,1])
     tp_means <- matrix(data = 0, nrow = max_outliers+1, ncol = 3,
