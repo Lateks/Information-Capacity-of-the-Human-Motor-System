@@ -53,9 +53,8 @@ test_limits <- function(limit_range = c(5, 20), fps = 120) {
             k = j + 1
 
             outliers1 <- detect_outliers(j, k, limit, fps)
-            outliers2 <- detect_outliers(k, j, limit, fps)
 
-            all_outliers <- rbind(all_outliers, outliers1, outliers2)
+            all_outliers <- rbind(all_outliers, outliers1)
         }
         plot_model(all_outliers, limit)
     }
@@ -79,6 +78,7 @@ plot_model <- function(all_outliers, limit) {
         xlab = "Number of outliers", ylab = "Throughput")
     abline(outlierfit, col = "red")
 
+    print(limit)
     print(anova(outlierfit))
 }
 
