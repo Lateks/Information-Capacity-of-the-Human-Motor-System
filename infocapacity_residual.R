@@ -199,10 +199,10 @@ evaluate_pair <- function(seqnum1, seqnum2, fps = 120, pca = FALSE, plotfeatures
 {
     data <- load_aligned_pair_and_residuals(seqnum1, seqnum2)
     a <- data[[1]]
-    residuals_a[[2]]
+    residuals_a <- data[[2]]
 
     b <- data[[3]]
-    residuals_b[[4]]
+    residuals_b <- data[[4]]
 
     if (!pca) {
         plot_features(plotfeatures, seqnum1, seqnum2, a, b, residuals_a, residuals_b)
