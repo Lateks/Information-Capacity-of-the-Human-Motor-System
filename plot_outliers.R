@@ -1,5 +1,17 @@
 source("infocapacity_residual.R")
 
+# Returns a logical matrix of the same size as the input
+# matrix residuals. Each element is either TRUE (the
+# corresponding element in the residuals matrix is
+# considered an outlier) or FALSE (it is not an outlier).
+#
+# An "outlier" is defined to be a residual observation that
+# differs more than limit (a parameter) times the standard
+# deviation of the feature from the feature mean.
+#
+# Parameters:
+# - residuals       residual matrix
+# - limit           see definition of an outlier above
 detect_outliers <- function(residuals, limit) {
     num_features <- ncol(residuals)
     outliers <- matrix(data = FALSE, nrow = nrow(residuals), ncol = num_features)
@@ -20,17 +32,14 @@ detect_outliers <- function(residuals, limit) {
 # in each feature and the second column contains throughput
 # for the same feature.
 #
-# An "outlier" is defined to be a residual observation that
-# differs more than limit (a parameter) times the standard
-# deviation of the feature from the feature mean.
-#
 # Parameters:
 # - main_sequence_number        number of the sequence to calculate
 #                               outliers for
 # - sideinfo_sequence_number    number of the sequence to use as
 #                               side information for throughput
 #                               calculation
-# - limit                       see definition of an outlier above
+# - limit                       see definition of an outlier in
+#                               detect_outliers
 # - fps                         frames per second in the sequences
 #                               (for throughput calculation)
 count_outliers <- function(main_sequence_number, sideinfo_sequence_number, limit, fps) {
@@ -120,6 +129,11 @@ means_and_sdevs <- function(all_outliers) {
 # Draws useful plots of the outliers for sequences
 # in the aligneddata subdirectory of the working
 # directory.
+#
+# Parameters:
+# - limit               limit for detecting an outlier
+#                       (see detect_outliers)
+# - fps                 framerate
 plot_outliers <- function(limit = 7, fps = 120) {
     files <- length(dir("aligneddata", "^[[:digit:]]+_ali_[[:digit:]]+.txt$"))
     all_outliers <- c()
@@ -158,6 +172,17 @@ plot_outliers <- function(limit = 7, fps = 120) {
         xlab = "Number of outliers", ylab = "Throughput sdev")
 }
 
+# Plot aligned residuals for the two given sequences (a pair). Only
+# the features specified in the features list are plotted (an
+# individual window will open for each feature).
+#
+# Parameters:
+# - sequence_number     the number of the first sequence
+# - pair_number         the number of the pair of the first sequence
+# - features            a vector of the feature numbers to be plotted
+# - limit               limit for detecting an outlier
+#                       (see detect_outliers)
+# - fps                 framerate
 show_outliers <- function(sequence_number, pair_number, features = c(1),
     limit = 7, fps = 120) {
 
