@@ -31,9 +31,11 @@ detect_outliers <- function(main_sequence_number, sideinfo_sequence_number, limi
         outliers[i] <- length(residuals[abs(feat_mean - residuals[,i]) > limit * sdev, i])
     }
 
-    data <- load_aligned_pair_and_residuals(main_sequence_number, sideinfo_sequence_number)
+    data <- load_aligned_pair_and_residuals(main_sequence_number,
+        sideinfo_sequence_number)
     residual_seqs <- remove_duplicate_frames(data[[2]], data[[4]])
-    feature_tps <- (evaluate_residual_shared_information(residual_seqs[[1]], residual_seqs[[2]]))$feature_shared / nrow(residual_seqs[[1]]) * fps / log(2.0);
+    feature_tps <- (evaluate_residual_shared_information(residual_seqs[[1]],
+        residual_seqs[[2]]))$feature_shared / nrow(residual_seqs[[1]]) * fps / log(2.0);
 
     outliers_and_throughputs <- cbind(outliers, feature_tps)
 
