@@ -1,21 +1,8 @@
 #####################################################################
 #
-# Original:
 # R code for reproducing the experiments in 
 # (Roos, Oulasvirta, "An Extended Framework for Measuring the
 # Information Capacity of the Human Motor System")
-#
-# code by Teemu Roos, Feb 15, 2011
-# teemu.roos (at) cs.helsinki.fi
-#
-# Current version:
-# Modified for more general use and added PCA functionality
-# by Laura Leppänen (research assistant), September 2011
-# laura.leppanen (at) cs.helsinki.fi
-#
-# New method of calculating throughput using residuals of residuals
-# added by Arttu Modig (research assistant), September 2011
-# arttu.modig (at) aalto.fi
 #
 # Data needs to be aligned temporally before being evaluated
 # for information capacity. To align, we recommend Canonical
