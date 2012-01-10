@@ -1,5 +1,7 @@
 source("infocapacity_residual.R")
 
+LIMIT = 7
+
 # Returns a logical matrix of the same size as the input
 # matrix residuals. Each element is either TRUE (the
 # corresponding element in the residuals matrix is
@@ -12,17 +14,20 @@ source("infocapacity_residual.R")
 # Parameters:
 # - residuals       residual matrix
 # - limit           see definition of an outlier above
-detect_outliers <- function(residuals, limit) {
+detect_outliers_in_sequence <- function(residuals, limit) {
     num_features <- ncol(residuals)
     outliers <- matrix(data = FALSE, nrow = nrow(residuals), ncol = num_features)
 
-    for (i in 1:num_features) {
-        sdev <- sd(residuals[,i])
-        feat_mean <- mean(residuals[,i])
-        outliers[,i] <- abs(feat_mean - residuals[,i]) > limit * sdev
-    }
+    for (i in 1:num_features)
+        outliers[,i] <- detect_outliers_in_feature(residuals[,i], limit)
 
     return(outliers)
+}
+
+detect_outliers_in_feature <- function(residuals, limit) {
+    sdev <- sd(residuals)
+    feat_mean <- mean(residuals)
+    return(abs(feat_mean - residuals) > limit * sdev)
 }
 
 # Calculates the number of "outliers" in each feature from
@@ -39,14 +44,14 @@ detect_outliers <- function(residuals, limit) {
 #                               side information for throughput
 #                               calculation
 # - limit                       see definition of an outlier in
-#                               detect_outliers
+#                               detect_outliers_in_sequence
 # - fps                         frames per second in the sequences
 #                               (for throughput calculation)
 count_outliers <- function(main_sequence_number, sideinfo_sequence_number, limit, fps) {
     residuals <- calculate_residuals(main_sequence_number)
     num_features <- ncol(residuals)
     outliers <- vector(mode = "integer", length = num_features)
-    detected <- detect_outliers(residuals, limit)
+    detected <- detect_outliers_in_sequence(residuals, limit)
 
     for (i in 1:num_features) {
         sdev <- sd(residuals[,i])
@@ -132,9 +137,9 @@ means_and_sdevs <- function(all_outliers) {
 #
 # Parameters:
 # - limit               limit for detecting an outlier
-#                       (see detect_outliers)
+#                       (see detect_outliers_in_sequence)
 # - fps                 framerate
-plot_outliers <- function(limit = 7, fps = 120) {
+plot_outliers <- function(limit = LIMIT, fps = 120) {
     files <- length(dir("aligneddata", "^[[:digit:]]+_ali_[[:digit:]]+.txt$"))
     all_outliers <- c()
 
@@ -181,10 +186,9 @@ plot_outliers <- function(limit = 7, fps = 120) {
 # - pair_number         the number of the pair of the first sequence
 # - features            a vector of the feature numbers to be plotted
 # - limit               limit for detecting an outlier
-#                       (see detect_outliers)
-# - fps                 framerate
-show_outliers <- function(sequence_number, pair_number, features = c(1),
-    limit = 7, fps = 120) {
+#                       (see detect_outliers_in_sequence)
+show_outlier_residuals <- function(sequence_number, pair_number, features = c(1),
+    limit = LIMIT) {
 
     aligned <- load_aligned_pair_and_residuals(sequence_number, pair_number)
     a <- aligned[[1]]
@@ -195,8 +199,8 @@ show_outliers <- function(sequence_number, pair_number, features = c(1),
     frames <- nrow(residuals_a)
     framenums <- c(1:frames)
 
-    outliers_a <- detect_outliers(residuals_a, limit)
-    outliers_b <- detect_outliers(residuals_b, limit)
+    outliers_a <- detect_outliers_in_sequence(residuals_a, limit)
+    outliers_b <- detect_outliers_in_sequence(residuals_b, limit)
 
     for (feat in features) {
         dev.new()
@@ -229,5 +233,36 @@ show_outliers <- function(sequence_number, pair_number, features = c(1),
                 main = sprintf("Sequence %d, feature %d", pair_number, feat),
                 xlab = "Frames", ylab = "Residuals")
         }
+    }
+}
+
+plot_outliers_in_sequence_feature <- function(sequence_number, feature, limit = LIMIT) {
+    residuals <- calculate_residuals(sequence_number)
+    sequence <- load_sequence(sequence_number)
+    sequence <- sequence[3:nrow(sequence),]
+    is_outlier <- detect_outliers_in_feature(residuals[,feature], limit)
+
+    framenums <- 1:nrow(sequence)
+    num_outliers <- sum(is_outlier)
+    if (num_outliers == 0) {
+        print("No outliers found in sequence %d, feature %d",
+            sequence_number, feature)
+        return()
+    }
+
+    outlier_index <- 0
+    for (i in 1:num_outliers) {
+        dev.new()
+        outlier_index <- outlier_index + 1
+        while(!is_outlier[outlier_index])
+            outlier_index <- outlier_index + 1
+
+        frames <- setdiff(framenums[(outlier_index-50):(outlier_index+50)],
+            outlier_index)
+        plot(frames, sequence[frames,feature],
+            main = sprintf("Feature %d, outlier %d", feature, i),
+            xlab = "Frames", ylab = "Value")
+        points(outlier_index, sequence[outlier_index,feature],
+            col = "red")
     }
 }
