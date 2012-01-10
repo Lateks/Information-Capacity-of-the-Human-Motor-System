@@ -240,25 +240,16 @@ plot_outliers_in_sequence_feature <- function(sequence_number, feature, limit = 
     residuals <- calculate_residuals(sequence_number)
     sequence <- load_sequence(sequence_number)
     sequence <- sequence[3:nrow(sequence),]
-    is_outlier <- detect_outliers_in_feature(residuals[,feature], limit)
+    is_outlier <- get_outliers_or_exit(residuals[,feature], limit)
 
-    framenums <- 1:nrow(sequence)
+    frame_nums <- 1:nrow(sequence)
     num_outliers <- sum(is_outlier)
-    if (num_outliers == 0) {
-        print("No outliers found in sequence %d, feature %d",
-            sequence_number, feature)
-        return()
-    }
-
     outlier_index <- 0
     for (i in 1:num_outliers) {
         dev.new()
-        outlier_index <- outlier_index + 1
-        while(!is_outlier[outlier_index])
-            outlier_index <- outlier_index + 1
+        outlier_index <- get_next_outlier_index(outlier_index, is_outlier)
+        frames <- get_frame_window(frame_nums, outlier_index)
 
-        frames <- setdiff(framenums[(outlier_index-50):(outlier_index+50)],
-            outlier_index)
         plot(frames, sequence[frames,feature],
             main = sprintf("Feature %d, outlier %d", feature, i),
             xlab = "Frames", ylab = "Value")
@@ -266,3 +257,24 @@ plot_outliers_in_sequence_feature <- function(sequence_number, feature, limit = 
             col = "red")
     }
 }
+
+get_outliers_or_exit <- function(residuals, limit) {
+    frame_is_outlier <- detect_outliers_in_feature(residuals, limit)
+    num_outliers <- sum(frame_is_outlier)
+    stopifnot(num_outliers > 0)
+    return(frame_is_outlier)
+}
+
+get_frame_window <- function(frame_nums, index) {
+    window <- 50
+    return(setdiff(frame_nums[(index-window):(index+window)], index))
+}
+
+get_next_outlier_index <- function(current_index, frame_is_outlier) {
+    current_index <- current_index + 1
+    while(!frame_is_outlier[current_index])
+        current_index <- current_index + 1
+
+    return(current_index)
+}
+
