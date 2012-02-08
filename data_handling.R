@@ -52,14 +52,9 @@ get_aligned_residuals <- function(sequence_num, aligned_sequence) {
 # Returns the residuals for the given sequence as a data frame.
 # Parameters:
 # - sequencefile    name of the file containing the coordinate sequence
-calculate_residuals <- function(sequence_num)
-{
+calculate_residuals <- function(sequence_num) {
     sequence <- load_sequence(sequence_num)
-    n <- nrow(sequence) - 2
-
-    residuals <- evaluate_residuals(cbind(sequence[1:n,],sequence[1:n+1,]), sequence[1:n+2,])
-
-    return(residuals)
+    return(residuals(sequence))
 }
 
 # Aligns the given residuals according to the given pre-aligned coordinate

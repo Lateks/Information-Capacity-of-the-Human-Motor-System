@@ -1,6 +1,24 @@
 source("infocapacity.R")
 source("data_handling.R")
 
+# Given a result list, FPS count and sequence length, generates a
+# vector with throughput, shared information in bits, total sum of
+# residuals, total conditional sum of residuals and the residual
+# quotient. (Vector length is 5.)
+#
+# Parameters:
+# - results             a result list given by evaluate_residual_shared_information
+# - fps                 frames per second (to calculate throughut)
+# - seq_length          sequence length (after alignment and duplicate removal)
+construct_result_vector <- function(results, fps, seq_length) {
+    quotient <- results$RSS / results$RSS_conditional
+    throughput <- results$total_shared / seq_length * fps / log(2.0)
+    shared_information_bits <- results$total_shared / log(2.0)
+
+    return(c(throughput, shared_information_bits, results$RSS,
+        results$RSS_conditional, quotient))
+}
+
 # Helper function for evaluate_residual complexity.
 # Parameters:
 # - a, b    aligned residual sequences

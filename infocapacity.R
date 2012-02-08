@@ -1,44 +1,44 @@
 step = 2
 
-# Given a result list, FPS count and sequence length, generates a
-# vector with throughput, shared information in bits, total sum of
-# residuals, total conditional sum of residuals and the residual
-# quotient. (Vector length is 5.)
-#
+# Returns shared information calculated with the "residuals of residuals" method.
 # Parameters:
-# - results             a result list given by evaluate_residual_shared_information
-# - fps                 frames per second (to calculate throughut)
-# - seq_length          sequence length (after alignment and duplicate removal)
-construct_result_vector <- function(results, fps, seq_length) {
-    quotient <- results$RSS / results$RSS_conditional
-    throughput <- results$total_shared / seq_length * fps / log(2.0)
-    shared_information_bits <- results$total_shared / log(2.0)
+# - a, b    sequences
+shared_information_by_residuals <- function(a,b) {
+    residuals_a <- residuals(a)
+    residuals_b <- residuals(b)
 
-    return(c(throughput, shared_information_bits, results$RSS,
-        results$RSS_conditional, quotient))
+    results <- evaluate_residual_shared_information(residuals_a, residuals_b)
+
+    return(list(n = nrow(a) - step, total_shared = results$total_shared,
+        feature_shared = results$feature_shared, RSS = results$RSS,
+        RSS_conditional = results$RSS_conditional))
 }
 
 # Return residuals from the AR(2) model as a list where each element is the
 # residual vector for the corresponding feature, given the observed sequence
 # and some predictor features (shifted data from the observed sequence).
-evaluate_residuals <- function(sequence_predictors, observed_sequence) {
+residuals <- function(sequence) {
+    n <- nrow(sequence) - step
+    sequence_predictors <- cbind(sequence[1:n,],sequence[1:n+step-1,])
+    observed_sequence <- sequence[1:n+step,]
+
     frames <- nrow(observed_sequence)
     num_features <- ncol(observed_sequence)
     residuals = matrix(nrow = frames, ncol = num_features)
-    # extract regressors depending on the input size
-    for (i in 1:num_features) {
+
+    for (i in 1:num_features) { # extract regressors depending on the input size
         if (ncol(sequence_predictors) == num_features)
             predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i]))
         if (ncol(sequence_predictors) == 2 * num_features)
             predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i],
-                sequence_predictors[, num_features+i]))
-
+                sequence_predictors[, num_features + i]))
         residuals[, i] <- qr.resid(predictors, observed_sequence[, i])
     }
     return(residuals)
 }
 
 # Evaluates shared information using the "residuals of residuals" method.
+#
 # Parameters:
 # - residuals_a, residuals_b    residual sequences (data frames or matrices)
 evaluate_residual_shared_information <- function(residuals_a, residuals_b) {
@@ -67,34 +67,12 @@ evaluate_residual_shared_information <- function(residuals_a, residuals_b) {
         RSS = total_RSS, RSS_conditional = total_RSS_residual))
 }
 
-# Returns shared information calculated with the "residuals of residuals" method.
-# Parameters:
-# - a, b    sequences
-shared_information_by_residuals <- function(a,b) {
-    n <- nrow(a) - step
-
-    residuals_a <- evaluate_residuals(cbind(a[1:n,],a[1:n+step-1,]), a[1:n+step,])
-    residuals_b <- evaluate_residuals(cbind(b[1:n,],b[1:n+step-1,]), b[1:n+step,])
-
-    results <- evaluate_residual_shared_information(residuals_a, residuals_b)
-
-    return(list(n = n, total_shared = results$total_shared,
-        feature_shared = results$feature_shared, RSS = results$RSS,
-        RSS_conditional = results$RSS_conditional))
-}
-
-# Removes duplicated rows from both sequences a and b
-# either symmetrically or asymmetrically.
+# Removes duplicated rows from both sequences a and b.
 #
 # Returns the altered sequences as a list with two elements.
-#
-# Parameters:
-# - a, b        sequences (order matters if asymmetric removal
-#               is used)
 remove_duplicate_frames <- function(a, b) {
-    skipa <- rowSums((a[2:nrow(a),]-a[1:(nrow(a)-1),])^2) == 0
-    skipa <- c(FALSE, skipa)
-    skip <- skipa
+    skip <- rowSums((a[2:nrow(a),]-a[1:(nrow(a)-1),])^2) == 0
+    skip <- c(FALSE, skip)
 
     a <- a[!skip,]
     b <- b[!skip,]
