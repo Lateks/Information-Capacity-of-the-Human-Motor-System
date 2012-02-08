@@ -11,9 +11,9 @@ pair_residual_complexity <- function(a, b, fps, pca = FALSE, features = c()) {
     n <- nrow(a)
 
     if (pca) {
-        reduced <- pca(a, b)
-        a <- reduced[[1]]
-        b <- reduced[[2]]
+        eigenvectors <- pca(a)
+        a <- normalize_features(a) %*% eigenvectors
+        b <- normalize_features(b) %*% eigenvectors
 
         for (i in features) {
             if (i != 0) {

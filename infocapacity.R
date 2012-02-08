@@ -102,6 +102,17 @@ remove_duplicate_frames <- function(a, b) {
     return(list(a, b))
 }
 
+# Performs PCA on data and returns a matrix of eigenvectors.
+pca <- function(data) {
+    data <- normalize_features(data)
+
+    principal_components <- prcomp(data)
+    num_eigenvecs <- choose_number_of_eigenvectors(principal_components$sdev)
+
+    eigenvectors <- principal_components$rotation[,1:num_eigenvecs]
+    return(eigenvectors)
+}
+
 # Performs normalization on the features of sequence a.
 # Returns the altered sequence.
 normalize_features <- function(a) {
@@ -112,42 +123,15 @@ normalize_features <- function(a) {
     return(a)
 }
 
+# Given a list of standard deviations (from the prcomp function
+# output), choose a number of eigenvectors in such a way that
+# 90% of variance is covered.
 choose_number_of_eigenvectors <- function(sdevs) {
-    sum <- 0
-    eigenvectors <- 0
     threshold <- 0.9*sum(sdevs**2)
-
+    sum <- 0
     for (k in 1:length(sdevs)) {
         sum <- sum + sdevs[k]**2
-        eigenvectors <- k
         if (sum >= threshold)
-            break
+            return(k)
     }
-
-    return(eigenvectors)
-}
-
-# Returns a list containing both of the given matrices after
-# being multiplied with the chosen eigenvectors (calculated
-# from the matrix data).
-#
-# Parameters:
-# - data        data matrix to perform PCA to
-# - side_data   another matrix to multiply with the same eigenvectors
-pca <- function(data, side_data) {
-    # Normalization is done here instead of passing center = TRUE and
-    # scale. = TRUE to prcomp because multiplication with eigenvectors
-    # is done "manually" (outside of prcomp) and therefore at least mean
-    # normalization has to be done on the original data anyway.
-    data <- normalize_features(data)
-    side_data <- normalize_features(side_data)
-
-    principal_components <- prcomp(data)
-    num_eigenvecs <- choose_number_of_eigenvectors(principal_components$sdev)
-
-    eigenvectors <- principal_components$rotation[,1:num_eigenvecs]
-    reduced_data <- data %*% eigenvectors
-    reduced_side_data <- side_data %*% eigenvectors
-
-    return(list(reduced_data, reduced_side_data))
 }
