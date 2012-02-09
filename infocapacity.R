@@ -3,7 +3,7 @@ step = 2
 # Returns shared information calculated with the "residuals of residuals" method.
 # Parameters:
 # - a, b    sequences
-shared_information_by_residuals <- function(a,b) {
+shared_information_by_residuals <- function(a, b) {
     residuals_a <- residuals(a)
     residuals_b <- residuals(b)
 
@@ -24,15 +24,22 @@ residuals <- function(sequence) {
     num_features <- ncol(observed_sequence)
     residuals = matrix(nrow = frames, ncol = num_features)
 
-    for (i in 1:num_features) { # extract regressors depending on the input size
-        if (ncol(sequence_predictors) == num_features)
-            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i]))
-        if (ncol(sequence_predictors) == 2 * num_features)
-            predictors <- qr(cbind(matrix(1,frames,1), sequence_predictors[, i],
-                sequence_predictors[, num_features + i]))
-        residuals[, i] <- qr.resid(predictors, observed_sequence[, i])
-    }
+    for (i in 1:num_features) # extract regressors depending on input size
+        residuals[, i] <- get_residuals_for_feature(i, sequence_predictors,
+                                                    observed_sequence)
     return(residuals)
+}
+
+# Calculates the residuals for a given feature in the regression
+# model.
+get_residuals_for_feature <- function(feat, predictors, observed) {
+    frames <- nrow(observed)
+    if (ncol(predictors) == ncol(observed))
+        predictors <- qr(cbind(matrix(1,frames,1), predictors[, feat]))
+    else
+        predictors <- qr(cbind(matrix(1,frames,1), predictors[, feat],
+            predictors[, ncol(observed) + feat]))
+    return(qr.resid(predictors, observed[, feat]))
 }
 
 # Evaluates shared information using the "residuals of residuals" method.
