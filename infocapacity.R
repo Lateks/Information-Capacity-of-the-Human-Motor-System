@@ -9,9 +9,7 @@ shared_information_by_residuals <- function(a,b) {
 
     results <- evaluate_residual_shared_information(residuals_a, residuals_b)
 
-    return(list(n = nrow(a) - step, total_shared = results$total_shared,
-        feature_shared = results$feature_shared, RSS = results$RSS,
-        RSS_conditional = results$RSS_conditional))
+    return(append(results, n = nrow(a) - step))
 }
 
 # Return residuals from the AR(2) model as a list where each element is the
@@ -54,6 +52,7 @@ evaluate_residual_shared_information <- function(residuals_a, residuals_b) {
 
         RSS <- sum(residuals_a[, i]^2)
         RSS_residual <- sum(residuals^2)
+
         total_RSS <- total_RSS + RSS
         total_RSS_residual <- total_RSS_residual + RSS_residual
 
