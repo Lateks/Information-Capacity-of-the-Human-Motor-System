@@ -54,23 +54,25 @@ evaluate_residual_shared_information <- function(residuals_a, residuals_b) {
     n <- nrow(residuals_a)
 
     for (i in 1:ncol(residuals_a)) {
-        lm.ra = lm(residuals_a[, i] ~ residuals_b[, i])
-        residuals = resid(lm.ra)
-
         RSS <- sum(residuals_a[, i]^2)
-        RSS_residual <- sum(residuals^2)
-
         total_RSS <- total_RSS + RSS
+
+        RSS_residual <- linear_model_residual_sum(residuals_a[, i], residuals_b[, i])
         total_RSS_residual <- total_RSS_residual + RSS_residual
 
-        shared_information <- (n/2*log(RSS/RSS_residual) - log(n)/2)
-
-        feature_shared[i] <- shared_information
-        total_shared <- total_shared + shared_information
+        feature_shared[i] <- (n/2*log(RSS/RSS_residual) - log(n)/2)
+        total_shared <- total_shared + feature_shared[i]
     }
 
     return(list(total_shared = total_shared, feature_shared = feature_shared,
         RSS = total_RSS, RSS_conditional = total_RSS_residual))
+}
+
+# Return the sum of squared residuals from a linear model fitting.
+linear_model_residual_sum <- function(seq_a, seq_b) {
+    lmfit = lm(seq_a ~ seq_b)
+    residuals = resid(lmfit)
+    return(sum(residuals^2))
 }
 
 # Removes duplicated rows from both sequences a and b.
