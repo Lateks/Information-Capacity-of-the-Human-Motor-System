@@ -135,11 +135,19 @@ subdir_based_residual_complexity <- function(fps = 120, pca = FALSE) {
 
         for (j in 1:(sequences-1)) {
             for (k in (j+1):sequences) {
-                rownames <- c(rownames, sprintf("(%d, %d)", j, k))
-                rownames <- c(rownames, sprintf("(%d, %d)", k, j))
+                rownames = append(rownames, sprintf("(%d, %d)", j, k))
+                rownames = append(rownames, sprintf("(%d, %d)", k, j))
 
-                all_results[rows[1]:rows[2],] <- evaluate_pair(j, k, fps = fps,
-                    pca = pca)
+                pair_a_b <- new("residualComplexityEvaluator", seqnum_a = j, seqnum_b = k,
+                                fps = fps, pca = pca)
+                results_a_b <- evaluate_complexity(pair_a_b)
+                pair_b_a <- new("residualComplexityEvaluator", seqnum_a = k, seqnum_b = j,
+                                fps = fps, pca = pca)
+                results_b_a <- evaluate_complexity(pair_b_a)
+
+                all_results[rows[1]:rows[2],] <- rbind(results_a_b, results_b_a,
+                    deparse.level = 0)
+
                 rows <- rows + 2
             }
         }
