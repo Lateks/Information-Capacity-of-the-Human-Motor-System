@@ -1,3 +1,5 @@
+source("infocapacity.R")
+
 # Loads and returns the sequence denoted by the given
 # sequence number (assumed to be in the current working directory)
 load_sequence <- function(sequence_number) {

@@ -1,4 +1,6 @@
-source("infocapacity_residual.R")
+# Prototyping diagnostic functions for detecting "outlier
+# residuals".
+source("data_handling.R")
 
 LIMIT = 7
 
@@ -59,9 +61,9 @@ count_outliers <- function(main_sequence_number, sideinfo_sequence_number, limit
         outliers[i] <- sum(detected[,i])
     }
 
-    data <- load_aligned_pair_and_residuals(main_sequence_number,
+    data <- load_aligned_residuals(main_sequence_number,
         sideinfo_sequence_number)
-    residual_seqs <- remove_duplicate_frames(data[[2]], data[[4]])
+    residual_seqs <- remove_duplicate_frames(data[[1]], data[[2]])
     feature_tps <- (evaluate_residual_shared_information(residual_seqs[[1]],
         residual_seqs[[2]]))$feature_shared / nrow(residual_seqs[[1]]) * fps / log(2.0);
 
@@ -190,11 +192,11 @@ plot_outliers <- function(limit = LIMIT, fps = 120) {
 show_outlier_residuals <- function(sequence_number, pair_number, features = c(1),
     limit = LIMIT) {
 
-    aligned <- load_aligned_pair_and_residuals(sequence_number, pair_number)
-    a <- aligned[[1]]
-    b <- aligned[[3]]
-    residuals_a <- aligned[[2]]
-    residuals_b <- aligned[[4]]
+    a <- load_aligned(sequence_number, pair_number)
+    b <- load_aligned(pair_number, sequence_number)
+    aligned <- load_aligned_residuals(sequence_number, pair_number)
+    residuals_a <- aligned[[1]]
+    residuals_b <- aligned[[2]]
 
     frames <- nrow(residuals_a)
     framenums <- c(1:frames)
