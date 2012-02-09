@@ -4,13 +4,7 @@ load_sequence <- function(sequence_number) {
     return(read.table(sprintf("%02d.txt", sequence_number)))
 }
 
-# Loads the aligned data file "seqnum1_ali_seqnum2.txt" as a data frame
-# and returns it.
-load_aligned <- function(seqnum1, seqnum2) {
-    return(read.table(sprintf("aligneddata/%d_ali_%d.txt", seqnum1, seqnum2)))
-}
-
-load_aligned_pair_and_residuals <- function(seqnum1, seqnum2) {
+load_aligned_residuals <- function(seqnum1, seqnum2) {
     a <- load_aligned(seqnum1, seqnum2)
     b <- load_aligned(seqnum2, seqnum1)
 
@@ -21,7 +15,13 @@ load_aligned_pair_and_residuals <- function(seqnum1, seqnum2) {
     residuals_a <- residuals[[1]]
     residuals_b <- residuals[[2]]
 
-    return(list(a, residuals_a, b, residuals_b))
+    return(list(residuals_a, residuals_b))
+}
+
+# Loads the aligned data file "seqnum1_ali_seqnum2.txt" as a data frame
+# and returns it.
+load_aligned <- function(seqnum1, seqnum2) {
+    return(read.table(sprintf("aligneddata/%d_ali_%d.txt", seqnum1, seqnum2)))
 }
 
 # Cuts two sequences to equal length by removing frames from the
@@ -45,8 +45,7 @@ cut_to_equal_length <- function(a, b) {
 # - aligned_sequence the same sequence after CTW
 get_aligned_residuals <- function(sequence_num, aligned_sequence) {
     residuals <- calculate_residuals(sequence_num)
-    aligned_residuals <- align_residuals(aligned_sequence, residuals)
-    return(aligned_residuals)
+    return(align_residuals(aligned_sequence, residuals))
 }
 
 # Returns the residuals for the given sequence as a data frame.
@@ -64,19 +63,16 @@ calculate_residuals <- function(sequence_num) {
 # - residuals   residuals for the original (non-aligned) sequence
 align_residuals <- function(sequence, residuals) {
     frames <- nrow(sequence)
-    features <- ncol(sequence)
 
     duplicate <- rowSums((sequence[2:frames,]-sequence[1:(frames-1),])^2) == 0
-    index <- index_of_third_frame(duplicate)
-    duplicate <- duplicate[index:length(duplicate)]
+    third_frame <- index_of_third_frame(duplicate)
+    duplicate <- duplicate[third_frame:length(duplicate)]
 
-    aligned <- matrix(0, nrow = frames - index, ncol = features)
+    aligned <- matrix(0, nrow = frames - third_frame, ncol = ncol(sequence))
     line <- 0
-
-    for (l in 1:(frames - index)) {
+    for (l in 1:(frames - third_frame)) {
         if (!duplicate[l])
             line <- line + 1
-
         aligned[l,] <- residuals[line,]
     }
 

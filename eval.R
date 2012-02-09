@@ -1,149 +1,8 @@
 source("infocapacity.R")
 source("data_handling.R")
+library("methods")
 
-# Given a result list, FPS count and sequence length, generates a
-# vector with throughput, shared information in bits, total sum of
-# residuals, total conditional sum of residuals and the residual
-# quotient. (Vector length is 5.)
-#
-# Parameters:
-# - results             a result list given by evaluate_residual_shared_information
-# - fps                 frames per second (to calculate throughut)
-# - seq_length          sequence length (after alignment and duplicate removal)
-construct_result_vector <- function(results, fps, seq_length) {
-    quotient <- results$RSS / results$RSS_conditional
-    throughput <- results$total_shared / seq_length * fps / log(2.0)
-    shared_information_bits <- results$total_shared / log(2.0)
-
-    return(c(throughput, shared_information_bits, results$RSS,
-        results$RSS_conditional, quotient))
-}
-
-# Helper function for evaluate_residual complexity.
-# Parameters:
-# - a, b    aligned residual sequences
-pair_residual_complexity <- function(a, b, fps, pca = FALSE, features = c()) {
-    data <- remove_duplicate_frames(a, b)
-    a <- data[[1]]
-    b <- data[[2]]
-    n <- nrow(a)
-
-    if (pca) {
-        eigenvectors <- pca(a)
-        a <- normalize_features(a) %*% eigenvectors
-        b <- normalize_features(b) %*% eigenvectors
-
-        for (i in features) {
-            if (i != 0) {
-                dev.new()
-                par(mfcol = c(1, 2))
-                plot(a[,i], main = sprintf("Aligned residuals after PCA, feature %d", i))
-                plot(b[,i], main = sprintf("Aligned residuals after PCA, feature %d", i))
-            }
-        }
-    }
-
-    results_a <- evaluate_residual_shared_information(a, b)
-
-    if (length(features) > 0 && features[1] == 0) {
-        print(results_a$feature_shared / log(2.0))
-    }
-    else {
-        for (i in features)
-            print(sprintf("Feature %d shared information in bits: %f", i, results_a$feature_shared[i] / log(2.0)))
-    }
-
-    return(construct_result_vector(results_a, fps, n))
-}
-
-# Plots the features (original and residual, aligned and unaligned)
-# given by the vector featurenums.
-#
-# Parameters:
-# - featurenums     vector containing the numbers of the features to plot
-# - origa_num       number of the original sequence a
-# - origb_num       number of the original sequence b
-# - aligneda        sequence a aligned with b
-# - alignedb        sequence b aligned with a
-# - residuals_a     the aligned residuals for sequence a
-# - residuals_b     the aligned residuals for sequence b
-plot_features <- function(featurenums, origa_num, origb_num, aligneda, alignedb, residuals_a, residuals_b) {
-    if ((length(featurenums) < 1) || (length(featurenums) == 1 && featurenums[1] == 0))
-        return()
-
-    origa <- load_sequence(origa_num)
-    origb <- load_sequence(origb_num)
-    origresiduals_a <- calculate_residuals(origa_num)
-    origresiduals_b <- calculate_residuals(origb_num)
-
-    for (i in featurenums) {
-        dev.new()
-        par(mfcol = c(3, 2))
-
-        # Plot originals
-        plot(origa[,i], main = sprintf("Original sequence, feature %d", i))
-        points(origb[,i], col = "blue")
-
-        plot(origresiduals_a[,i], main = sprintf("Original residuals, sequence %d, feature %d", origa_num, i))
-        plot(origresiduals_b[,i], main = sprintf("Original residuals, sequence %d, feature %d", origb_num, i))
-
-        # Plot aligned
-        plot(aligneda[,i], main = sprintf("Aligned sequence, feature %d", i))
-        points(alignedb[,i], col = "blue")
-
-        plot(residuals_a[,i], main = sprintf("Aligned residuals, sequence %d, feature %d", origa_num, i))
-        plot(residuals_b[,i], main = sprintf("Aligned residuals, sequence %d, feature %d", origb_num, i))
-    }
-}
-
-# Evaluates residual complexity for a given pair of sequences
-# (original sequence files assumed to be in the working directory
-# and aligned sequences in the subdirectory "aligneddata").
-#
-# Parameters:
-# - seqnum1, seqnum2    numbers of the sequences
-# - fps                 frames per second in the sequences
-# - pca                 use PCA (default FALSE)
-# - plotfeatures        a vector of feature numbers to plot
-#                       (the types of plots given depend on whether
-#                       PCA is used or not) and print feature shared
-#                       information for (use 0 as the first element
-#                       to print feature shared information for all
-#                       features instead of just the plotted ones)
-evaluate_pair <- function(seqnum1, seqnum2, fps = 120, pca = FALSE, plotfeatures = c())
-{
-    data <- load_aligned_pair_and_residuals(seqnum1, seqnum2)
-    a <- data[[1]]
-    residuals_a <- data[[2]]
-
-    b <- data[[3]]
-    residuals_b <- data[[4]]
-
-    if (!pca) {
-        plot_features(plotfeatures, seqnum1, seqnum2, a, b, residuals_a, residuals_b)
-    }
-
-    results_a <- pair_residual_complexity(residuals_a, residuals_b,
-        pca = pca, fps = fps, features = plotfeatures)
-    results_b <- pair_residual_complexity(residuals_b, residuals_a,
-        pca = pca, fps = fps, features = plotfeatures)
-
-    return(rbind(results_a, results_b, deparse.level = 0))
-}
-
-# Calculates residual complexities and throughputs for all sequences in
-# the current directory. (Note: the working directory should contain
-# the original coordinate sequences. The filenames should be e.g. "01.txt".)
-#
-# The columns of the result matrix contain throughput, sum of residuals,
-# sum of residuals of residuals and the quotient of the previous two,
-# in that order.
-#
-# Parameters:
-# - fps             frames per second in the given sequences
-# - pca             use principal components analysis
-evaluate_residual_complexity <- function(fps = 120, pca = FALSE)
-{
+residual_complexity <- function(fps = 120, pca = FALSE) {
     filenames <- dir("aligneddata", "^[[:digit:]]+_ali_[[:digit:]]+.txt$")
     sequences <- length(filenames)
     all_results <- matrix(nrow = sequences, ncol = 5,
@@ -152,16 +11,81 @@ evaluate_residual_complexity <- function(fps = 120, pca = FALSE)
     for (i in 1:(sequences/2)) {
         j = 2 * i - 1
         k = j + 1
-        all_results[j:k,] <- evaluate_pair(j, k, fps = fps, pca = pca)
+        pair_a_b <- new("residualComplexityEvaluator", seqnum_a = j, seqnum_b = k,
+                        fps = fps, pca = pca)
+        results_a_b <- evaluate_complexity(pair_a_b)
+        pair_b_a <- new("residualComplexityEvaluator", seqnum_a = k, seqnum_b = j,
+                        fps = fps, pca = pca)
+        results_b_a <- evaluate_complexity(pair_b_a)
+        all_results[j:k,] <- rbind(results_a_b, results_b_a, deparse.level = 0)
     }
 
     return(all_results)
 }
 
-# Calculate the number of k-combinations in a set with n elements.
-combinations <- function(n, k) {
-    return(factorial(n) / (factorial(k) * factorial(n - k)))
-}
+setClass("residualComplexityEvaluator",
+         representation(seqnum_a = "numeric",
+                        seqnum_b = "numeric",
+                        fps   = "numeric",
+                        pca   = "logical",
+                        seq_a = "matrix",
+                        seq_b = "matrix"))
+
+setGeneric("evaluate_complexity",
+           function(this) standardGeneric("evaluate_complexity"))
+setMethod("evaluate_complexity", "residualComplexityEvaluator",
+           function(this) {
+               this <- load_residuals(this)
+               this <- remove_duplicates(this)
+               if (this@pca) this <- do_pca(this)
+               results <- evaluate_residual_shared_information(this@seq_a, this@seq_b)
+               construct_result_vector(this, results)
+           })
+
+setGeneric("load_residuals",
+           function (this) standardGeneric("load_residuals"))
+setMethod("load_residuals", "residualComplexityEvaluator",
+          function(this) {
+              data <- load_aligned_residuals(this@seqnum_a, this@seqnum_b)
+              this@seq_a <- data[[1]]
+              this@seq_b <- data[[2]]
+              this
+          })
+
+setGeneric("remove_duplicates",
+           function(this) standardGeneric("remove_duplicates"))
+setMethod("remove_duplicates", "residualComplexityEvaluator",
+          function(this) {
+              data <- remove_duplicate_frames(this@seq_a, this@seq_b)
+              this@seq_a <- data[[1]]
+              this@seq_b <- data[[2]]
+              this
+          })
+
+setGeneric("do_pca",
+           function(this) standardGeneric("do_pca"))
+setMethod("do_pca", "residualComplexityEvaluator",
+          function(this) {
+              eigenvectors <- pca(this@seq_a)
+              this@seq_a <- normalize_features(this@seq_a) %*% eigenvectors
+              this@seq_b <- normalize_features(this@seq_b) %*% eigenvectors
+              this
+          })
+
+# Generates a vector with throughput, shared information
+# in bits, total sum of residuals, total conditional sum of
+# residuals and the residual quotient. (Vector length is 5.)
+setGeneric("construct_result_vector",
+           function(this, results) standardGeneric("construct_result_vector"))
+setMethod("construct_result_vector", "residualComplexityEvaluator",
+          function(this, results) {
+              quotient <- results$RSS / results$RSS_conditional
+              throughput <- results$total_shared / nrow(this@seq_a) * this@fps / log(2.0)
+              shared_information_bits <- results$total_shared / log(2.0)
+
+              c(throughput, shared_information_bits, results$RSS,
+                results$RSS_conditional, quotient)
+          })
 
 # Calculate residual complexity assuming that each sequence type is in
 # its own subdirectory. The original sequence files for different
@@ -173,8 +97,6 @@ combinations <- function(n, k) {
 # Parameters:
 # - fps     frames per second in the sequences
 # - pca     use PCA (default FALSE)
-# - compare boolean value indicating that the throughput results
-#           from earlier methods should be included
 #
 # Example of the directory tree:
 # - working directory
@@ -197,7 +119,7 @@ combinations <- function(n, k) {
 #         |
 #         * 1_ali_2.txt
 #         * 2_ali_1.txt
-subdir_based_residual_complexity <- function(fps = 120, pca = FALSE, compare = FALSE) {
+subdir_based_residual_complexity <- function(fps = 120, pca = FALSE) {
     subdirs <- dir(".", "^[[:digit:]][[:digit:]]+$")
     results <- list()
     for (i in 1:length(subdirs)) {
@@ -211,13 +133,6 @@ subdir_based_residual_complexity <- function(fps = 120, pca = FALSE, compare = F
             dimnames = list(1:combos, col_names))
         rows <- c(1, 2)
 
-        if (compare) {
-            compare_results_orig <- matrix(nrow = combos, ncol = 5,
-                dimnames = list(1:combos, col_names))
-            compare_results_res <- matrix(nrow = combos, ncol = 5,
-                dimnames = list(1:combos, col_names))
-        }
-
         for (j in 1:(sequences-1)) {
             for (k in (j+1):sequences) {
                 rownames <- c(rownames, sprintf("(%d, %d)", j, k))
@@ -225,35 +140,18 @@ subdir_based_residual_complexity <- function(fps = 120, pca = FALSE, compare = F
 
                 all_results[rows[1]:rows[2],] <- evaluate_pair(j, k, fps = fps,
                     pca = pca)
-
-                if (compare) { # run earlier method versions for the same files
-                    result1 <- pair_throughput(j, k, fps = fps, pca = pca,
-                        residuals = FALSE)
-                    result2 <- pair_throughput(k, j, fps = fps, pca = pca,
-                        residuals = FALSE)
-                    compare_results_orig[rows[1]:rows[2],] <- rbind(result1$results,
-                        result2$results)
-
-                    result3 <- pair_throughput(j, k, fps = fps, pca = pca)
-                    result4 <- pair_throughput(k, j, fps = fps, pca = pca)
-                    compare_results_res[rows[1]:rows[2],] <- rbind(result3$results,
-                        result4$results)
-                }
                 rows <- rows + 2
             }
         }
         rownames(all_results) <- rownames
-        if (compare) {
-            rownames(compare_results_orig) <- rownames
-            rownames(compare_results_res) <- rownames
-            results[[i]] <- list(dir = subdirs[i], new_residual = all_results,
-                old_residual = compare_results_res, original = compare_results_res)
-        }
-        else {
-            results[[i]] <- list(dir = subdirs[i], results = all_results);
-        }
+        results[[i]] <- list(dir = subdirs[i], results = all_results);
 
         setwd("..")
     }
     return(results)
+}
+
+# Calculate the number of k-combinations in a set with n elements.
+combinations <- function(n, k) {
+    return(factorial(n) / (factorial(k) * factorial(n - k)))
 }

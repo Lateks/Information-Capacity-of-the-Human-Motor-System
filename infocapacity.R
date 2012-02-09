@@ -1,17 +1,5 @@
 step = 2
 
-# Returns shared information calculated with the "residuals of residuals" method.
-# Parameters:
-# - a, b    sequences
-shared_information_by_residuals <- function(a, b) {
-    residuals_a <- residuals(a)
-    residuals_b <- residuals(b)
-
-    results <- evaluate_residual_shared_information(residuals_a, residuals_b)
-
-    return(append(results, n = nrow(a) - step))
-}
-
 # Return residuals from the AR(2) model as a list where each element is the
 # residual vector for the corresponding feature, given the observed sequence
 # and some predictor features (shifted data from the observed sequence).
