@@ -11,16 +11,21 @@ residual_complexity <- function(fps = 120, pca = FALSE) {
     for (i in 1:(sequences/2)) {
         j = 2 * i - 1
         k = j + 1
-        pair_a_b <- new("residualComplexityEvaluator", seqnum_a = j, seqnum_b = k,
-                        fps = fps, pca = pca)
-        results_a_b <- evaluate_complexity(pair_a_b)
-        pair_b_a <- new("residualComplexityEvaluator", seqnum_a = k, seqnum_b = j,
-                        fps = fps, pca = pca)
-        results_b_a <- evaluate_complexity(pair_b_a)
-        all_results[j:k,] <- rbind(results_a_b, results_b_a, deparse.level = 0)
+        all_results[j:k,] <- pair_residual_complexity(j, k, fps = fps, pca = pca)
     }
 
     return(all_results)
+}
+
+pair_residual_complexity <- function(seqnum_a, seqnum_b, fps = 120, pca = FALSE) {
+    pair_a_b <- new("residualComplexityEvaluator", seqnum_a = seqnum_a,
+                    seqnum_b = seqnum_b, fps = fps, pca = pca)
+    results_a_b <- evaluate_complexity(pair_a_b)
+    pair_b_a <- new("residualComplexityEvaluator", seqnum_a = seqnum_b,
+                    seqnum_b = seqnum_a, fps = fps, pca = pca)
+    results_b_a <- evaluate_complexity(pair_b_a)
+
+    return(rbind(results_a_b, results_b_a, deparse.level = 0))
 }
 
 setClass("residualComplexityEvaluator",
@@ -138,15 +143,7 @@ subdir_based_residual_complexity <- function(fps = 120, pca = FALSE) {
                 rownames = append(rownames, sprintf("(%d, %d)", j, k))
                 rownames = append(rownames, sprintf("(%d, %d)", k, j))
 
-                pair_a_b <- new("residualComplexityEvaluator", seqnum_a = j, seqnum_b = k,
-                                fps = fps, pca = pca)
-                results_a_b <- evaluate_complexity(pair_a_b)
-                pair_b_a <- new("residualComplexityEvaluator", seqnum_a = k, seqnum_b = j,
-                                fps = fps, pca = pca)
-                results_b_a <- evaluate_complexity(pair_b_a)
-
-                all_results[rows[1]:rows[2],] <- rbind(results_a_b, results_b_a,
-                    deparse.level = 0)
+                all_results[rows[1]:rows[2],] <- pair_residual_complexity(j, k, fps, pca)
 
                 rows <- rows + 2
             }
