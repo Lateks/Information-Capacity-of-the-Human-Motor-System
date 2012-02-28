@@ -99,3 +99,19 @@ index_of_third_frame <- function(duplicate) {
     }
     return(startindex)
 }
+
+# Add noise to the features of a matrix (for testing).
+# Parameters:
+# - a               seuqence matrix
+# - noise_coeff     coefficient for standard deviation
+add_noise_to_features <- function(a, noise_coeff) {
+    if (noise_coeff == 0)
+        return(a)
+
+    features <- ncol(a)
+    for (k in 1:features) {
+        feature_sdev <- sqrt(var(a[,k]))
+        a[,k] <- a[,k] + noise_coeff * feature_sdev * rnorm(nrow(a))
+    }
+    return(a)
+}

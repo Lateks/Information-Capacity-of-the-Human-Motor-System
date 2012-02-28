@@ -2,7 +2,7 @@ source("infocapacity.R")
 source("data_handling.R")
 library("methods")
 
-residual_complexity <- function(fps = 120, pca = FALSE) {
+residual_complexity <- function(fps = 120, pca = FALSE, noise = 0) {
     filenames <- dir("aligneddata", "^[[:digit:]]+_ali_[[:digit:]]+.txt$")
     sequences <- length(filenames)
     all_results <- matrix(nrow = sequences, ncol = 5,
@@ -11,18 +11,18 @@ residual_complexity <- function(fps = 120, pca = FALSE) {
     for (i in 1:(sequences/2)) {
         j = 2 * i - 1
         k = j + 1
-        all_results[j:k,] <- pair_residual_complexity(j, k, fps = fps, pca = pca)
+        all_results[j:k,] <- pair_residual_complexity(j, k, fps = fps, pca = pca, noise = noise)
     }
 
     return(all_results)
 }
 
-pair_residual_complexity <- function(seqnum_a, seqnum_b, fps = 120, pca = FALSE) {
+pair_residual_complexity <- function(seqnum_a, seqnum_b, fps = 120, pca = FALSE, noise = 0) {
     pair_a_b <- new("residualComplexityEvaluator", seqnum_a = seqnum_a,
-                    seqnum_b = seqnum_b, fps = fps, pca = pca)
+                    seqnum_b = seqnum_b, fps = fps, pca = pca, noise = noise)
     results_a_b <- evaluate_complexity(pair_a_b)
     pair_b_a <- new("residualComplexityEvaluator", seqnum_a = seqnum_b,
-                    seqnum_b = seqnum_a, fps = fps, pca = pca)
+                    seqnum_b = seqnum_a, fps = fps, pca = pca, noise = noise)
     results_b_a <- evaluate_complexity(pair_b_a)
 
     return(rbind(results_a_b, results_b_a, deparse.level = 0))
@@ -33,6 +33,7 @@ setClass("residualComplexityEvaluator",
                         seqnum_b = "numeric",
                         fps   = "numeric",
                         pca   = "logical",
+                        noise = "numeric",
                         seq_a = "matrix",
                         seq_b = "matrix"))
 
@@ -62,7 +63,7 @@ setGeneric("remove_duplicates",
 setMethod("remove_duplicates", "residualComplexityEvaluator",
           function(this) {
               data <- remove_duplicate_frames(this@seq_a, this@seq_b)
-              this@seq_a <- data[[1]]
+              this@seq_a <- add_noise_to_features(data[[1]], this@noise)
               this@seq_b <- data[[2]]
               this
           })
@@ -124,7 +125,7 @@ setMethod("construct_result_vector", "residualComplexityEvaluator",
 #         |
 #         * 1_ali_2.txt
 #         * 2_ali_1.txt
-subdir_based_residual_complexity <- function(fps = 120, pca = FALSE) {
+subdir_based_residual_complexity <- function(fps = 120, pca = FALSE, noise = 0) {
     subdirs <- dir(".", "^[[:digit:]][[:digit:]]+$")
     results <- list()
     for (i in 1:length(subdirs)) {
@@ -143,7 +144,7 @@ subdir_based_residual_complexity <- function(fps = 120, pca = FALSE) {
                 rownames = append(rownames, sprintf("(%d, %d)", j, k))
                 rownames = append(rownames, sprintf("(%d, %d)", k, j))
 
-                all_results[rows[1]:rows[2],] <- pair_residual_complexity(j, k, fps, pca)
+                all_results[rows[1]:rows[2],] <- pair_residual_complexity(j, k, fps, pca, noise)
 
                 rows <- rows + 2
             }
