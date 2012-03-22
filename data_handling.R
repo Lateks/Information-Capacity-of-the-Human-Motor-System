@@ -6,17 +6,17 @@ load_sequence <- function(sequence_number) {
     return(read.table(sprintf("%02d.txt", sequence_number)))
 }
 
-# Loads the aligned files corresponding to the given
+# Loads the alignment files corresponding to the given
 # sequence numbers and calculates residuals.
 # Returns a list with the residuals of
 # seqnum1_ali_seqnum2 first and the residuals of
 # seqnum2_ali_seqnum1 second.
 load_aligned_residuals <- function(seqnum1, seqnum2) {
-    a <- load_aligned(seqnum1, seqnum2)
-    b <- load_aligned(seqnum2, seqnum1)
+    ali_a <- load_aligned(seqnum1, seqnum2, data = FALSE)
+    ali_b <- load_aligned(seqnum2, seqnum1, data = FALSE)
 
-    residuals_a <- get_aligned_residuals(seqnum1, a)
-    residuals_b <- get_aligned_residuals(seqnum2, b)
+    residuals_a <- get_aligned_residuals(seqnum1, ali_a)
+    residuals_b <- get_aligned_residuals(seqnum2, ali_b)
 
     residuals <- cut_to_equal_length(residuals_a, residuals_b)
     residuals_a <- residuals[[1]]
@@ -25,14 +25,25 @@ load_aligned_residuals <- function(seqnum1, seqnum2) {
     return(list(residuals_a, residuals_b))
 }
 
-# Loads the aligned data file "seqnum1_ali_seqnum2.txt" as a data frame
-# and returns it.
-load_aligned <- function(seqnum1, seqnum2) {
-    return(read.table(sprintf("aligneddata/%d_ali_%d.txt", seqnum1, seqnum2)))
+# Loads the aligned data file "seqnum1_ali_seqnum2.txt" or the corresponding
+# alignment file as a data frame and returns it. (Note: the alignment file
+# has only one column, so it is practically a vector.)
+#
+# Parameters:
+# seqnum1       number of the first sequence
+# seqnum2       number of the second sequence
+# data          logical value: return data (TRUE) or just the alignment (FALSE)
+load_aligned <- function(seqnum1, seqnum2, data = TRUE) {
+    if (data)
+        dir = "aligneddata"
+    else
+        dir = "alignment"
+    return(read.table(sprintf("%s/%d_ali_%d.txt", dir, seqnum1, seqnum2)))
 }
 
 # Cuts two sequences to equal length by removing frames from the
 # beginning.
+#
 # Parameters:
 # - a, b    residual sequences
 cut_to_equal_length <- function(a, b) {
@@ -49,15 +60,16 @@ cut_to_equal_length <- function(a, b) {
 # Parameters:
 # - sequencefile     the name of the file containing the original
 #                    coordinate sequence
-# - aligned_sequence the same sequence after CTW
-get_aligned_residuals <- function(sequence_num, aligned_sequence) {
+# - alignment        the file containing frame duplication information
+#                    in the aligned data (as output by CTW)
+get_aligned_residuals <- function(sequence_num, alignment) {
     residuals <- calculate_residuals(sequence_num)
-    return(align_residuals(aligned_sequence, residuals))
+    return(align_residuals(alignment, residuals))
 }
 
 # Returns the residuals for the given sequence as a data frame.
 # Parameters:
-# - sequencefile    name of the file containing the coordinate sequence
+# - sequence_num    the number of the sequence
 calculate_residuals <- function(sequence_num) {
     sequence <- load_sequence(sequence_num)
     return(residuals(sequence))
@@ -66,45 +78,18 @@ calculate_residuals <- function(sequence_num) {
 # Aligns the given residuals according to the given pre-aligned coordinate
 # sequence and returns it in data frame format.
 # Parameters:
-# - sequence    the aligned coordinate sequence
+# - alignment   the alignment file, indicating frame duplications
 # - residuals   residuals for the original (non-aligned) sequence
-align_residuals <- function(sequence, residuals) {
+align_residuals <- function(alignment, residuals) {
     frames <- nrow(sequence)
+    # The first two frames (numbered 1 and 2) are cut out because
+    # there are no residuals for them.
+    alignment <- alignment[alignment > 2]  - 2
 
-    duplicate <- rowSums((sequence[2:frames,]-sequence[1:(frames-1),])^2) == 0
-    third_frame <- index_of_third_frame(duplicate)
-
-    # The first two frames are cut out because there are no
-    # residuals for them.
-    duplicate <- duplicate[third_frame:length(duplicate)]
-
-    # Generate a zero matrix of the right size for the aligned sequence.
-    aligned <- matrix(0, nrow = frames - third_frame, ncol = ncol(sequence))
-    line <- 0
-    for (l in 1:(frames - third_frame)) {
-        if (!duplicate[l])
-            line <- line + 1
-        aligned[l,] <- residuals[line,]
-    }
+    aligned <- matrix(0, nrow = length(alignment), ncol = ncol(residuals))
+    # Perform alignment according to the given alignment file.
+    for (line in 1:nrow(aligned))
+        aligned[line,] <- residuals[alignment[line],]
 
     return(aligned)
-}
-
-# Returns the index of the third frame of the original sequence
-# in the aligned sequence given a logical vector where each
-# element indicates whether the corresponding row in the aligned
-# sequence is a duplicate of the previous one. The first element
-# (indicator for the first row which is never a duplicate) is
-# assumed to be missing.
-#
-# Parameters:
-# - duplicate   a logical vector (as described above)
-index_of_third_frame <- function(duplicate) {
-    startindex <- 0
-    for (i in 1:2) {
-        startindex <- startindex + 1
-        while (duplicate[startindex])
-            startindex <- startindex + 1
-    }
-    return(startindex)
 }
