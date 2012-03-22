@@ -119,7 +119,7 @@ setMethod("construct_result_vector", "residualComplexityEvaluator",
 #   |  * 01.txt
 #   |  * 02.txt
 #   |  * 03.txt
-#   |  -- aligneddata
+#   |  -- alignment
 #   |     |
 #   |     * 1_ali_2.txt
 #   |     * 1_ali_3.txt
@@ -128,7 +128,7 @@ setMethod("construct_result_vector", "residualComplexityEvaluator",
 #      |
 #      * 01.txt
 #      * 02.txt
-#      -- aligneddata
+#      -- alignment
 #         |
 #         * 1_ali_2.txt
 #         * 2_ali_1.txt
