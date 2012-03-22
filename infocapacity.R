@@ -1,8 +1,7 @@
 step = 2
 
 # Return residuals from the AR(2) model as a list where each element is the
-# residual vector for the corresponding feature, given the observed sequence
-# and some predictor features (shifted data from the observed sequence).
+# residual vector for the corresponding feature, given the observed sequence.
 residuals <- function(sequence) {
     n <- nrow(sequence) - step
     sequence_predictors <- cbind(sequence[1:n,],sequence[1:n+step-1,])
@@ -12,7 +11,7 @@ residuals <- function(sequence) {
     num_features <- ncol(observed_sequence)
     residuals = matrix(nrow = frames, ncol = num_features)
 
-    for (i in 1:num_features) # extract regressors depending on input size
+    for (i in 1:num_features)
         residuals[, i] <- get_residuals_for_feature(i, sequence_predictors,
                                                     observed_sequence)
     return(residuals)
@@ -20,9 +19,14 @@ residuals <- function(sequence) {
 
 # Calculates the residuals for a given feature in the regression
 # model.
+#
+# Parameters:
+# - feat        the column number of the feature
+# - predictors  AR model predictors
+# - observed    the observed sequence
 get_residuals_for_feature <- function(feat, predictors, observed) {
     frames <- nrow(observed)
-    if (ncol(predictors) == ncol(observed))
+    if (ncol(predictors) == ncol(observed)) # extract regressors depending on input size
         predictors <- qr(cbind(matrix(1,frames,1), predictors[, feat]))
     else
         predictors <- qr(cbind(matrix(1,frames,1), predictors[, feat],
@@ -30,7 +34,7 @@ get_residuals_for_feature <- function(feat, predictors, observed) {
     return(qr.resid(predictors, observed[, feat]))
 }
 
-# Evaluates shared information using the "residuals of residuals" method.
+# Evaluates shared information according to residuals of residuals.
 #
 # Parameters:
 # - residuals_a, residuals_b    residual sequences (data frames or matrices)
@@ -41,11 +45,11 @@ evaluate_residual_shared_information <- function(residuals_a, residuals_b) {
     feature_shared <- array(0, ncol(residuals_a))
     n <- nrow(residuals_a)
 
-    for (i in 1:ncol(residuals_a)) {
+    for (i in 1:ncol(residuals_a)) { # calculate shared information by feature
         RSS <- sum(residuals_a[, i]^2)
         total_RSS <- total_RSS + RSS
 
-        RSS_residual <- linear_model_residual_sum(residuals_a[, i], residuals_b[, i])
+        RSS_residual <- sum_squared_residuals(residuals_a[, i], residuals_b[, i])
         total_RSS_residual <- total_RSS_residual + RSS_residual
 
         feature_shared[i] <- (n/2*log(RSS/RSS_residual) - log(n)/2)
@@ -56,8 +60,9 @@ evaluate_residual_shared_information <- function(residuals_a, residuals_b) {
         RSS = total_RSS, RSS_conditional = total_RSS_residual))
 }
 
-# Return the sum of squared residuals from a linear model fitting.
-linear_model_residual_sum <- function(seq_a, seq_b) {
+# Fit a linear model seq_a ~ seq_b and return the sum of squared
+# residuals from the model.
+sum_squared_residuals <- function(seq_a, seq_b) {
     lmfit = lm(seq_a ~ seq_b)
     residuals = resid(lmfit)
     return(sum(residuals^2))
@@ -77,6 +82,8 @@ remove_duplicate_frames <- function(a, b) {
 }
 
 # Performs PCA on data and returns a matrix of eigenvectors.
+# The number of eigenvectors is chosen so that 90% of variance
+# is covered.
 pca <- function(data) {
     data <- normalize_features(data)
 

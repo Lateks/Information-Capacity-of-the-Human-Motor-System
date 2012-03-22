@@ -2,6 +2,10 @@ source("infocapacity.R")
 source("data_handling.R")
 library("methods")
 
+# Calculate the residual complexity of all pairs of sequences
+# in the current directory (with the directory structure specified
+# in the readme file). Sequences with consecutive numbers are
+# assumed to be pairs (e.g. 1 and 2, 3 and 4 and so on).
 residual_complexity <- function(fps = 120, pca = FALSE) {
     filenames <- dir("aligneddata", "^[[:digit:]]+_ali_[[:digit:]]+.txt$")
     sequences <- length(filenames)
@@ -17,6 +21,8 @@ residual_complexity <- function(fps = 120, pca = FALSE) {
     return(all_results)
 }
 
+# Calculate the residual complexity of two sequences numbered
+# seqnum_a and seqnum_b.
 pair_residual_complexity <- function(seqnum_a, seqnum_b, fps = 120, pca = FALSE) {
     pair_a_b <- new("residualComplexityEvaluator", seqnum_a = seqnum_a,
                     seqnum_b = seqnum_b, fps = fps, pca = pca)
@@ -28,13 +34,15 @@ pair_residual_complexity <- function(seqnum_a, seqnum_b, fps = 120, pca = FALSE)
     return(rbind(results_a_b, results_b_a, deparse.level = 0))
 }
 
+# A class for performing the required residual complexity evaluations,
+# including the loading of files, calculation of residuals etc.
 setClass("residualComplexityEvaluator",
-         representation(seqnum_a = "numeric",
+         representation(seqnum_a = "numeric", # numbers of the sequences
                         seqnum_b = "numeric",
                         fps   = "numeric",
-                        pca   = "logical",
-                        seq_a = "matrix",
-                        seq_b = "matrix"))
+                        pca   = "logical",  # perform/do not perform pca
+                        seq_a = "matrix",   # the loaded sequence a
+                        seq_b = "matrix"))  # the loaded sequence b
 
 setGeneric("evaluate_complexity",
            function(this) standardGeneric("evaluate_complexity"))

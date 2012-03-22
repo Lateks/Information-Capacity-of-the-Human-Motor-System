@@ -6,6 +6,11 @@ load_sequence <- function(sequence_number) {
     return(read.table(sprintf("%02d.txt", sequence_number)))
 }
 
+# Loads the aligned files corresponding to the given
+# sequence numbers and calculates residuals.
+# Returns a list with the residuals of
+# seqnum1_ali_seqnum2 first and the residuals of
+# seqnum2_ali_seqnum1 second.
 load_aligned_residuals <- function(seqnum1, seqnum2) {
     a <- load_aligned(seqnum1, seqnum2)
     b <- load_aligned(seqnum2, seqnum1)
@@ -68,8 +73,12 @@ align_residuals <- function(sequence, residuals) {
 
     duplicate <- rowSums((sequence[2:frames,]-sequence[1:(frames-1),])^2) == 0
     third_frame <- index_of_third_frame(duplicate)
+
+    # The first two frames are cut out because there are no
+    # residuals for them.
     duplicate <- duplicate[third_frame:length(duplicate)]
 
+    # Generate a zero matrix of the right size for the aligned sequence.
     aligned <- matrix(0, nrow = frames - third_frame, ncol = ncol(sequence))
     line <- 0
     for (l in 1:(frames - third_frame)) {
