@@ -22,8 +22,9 @@ residual_complexity <- function(fps = 120, pca = FALSE) {
 }
 
 # Calculate the residual complexity of two sequences numbered
-# seqnum_a and seqnum_b.
-pair_residual_complexity <- function(seqnum_a, seqnum_b, fps = 120, pca = FALSE) {
+# seqnum_a and seqnum_b. Throughputs per feature can also be printed.
+pair_residual_complexity <- function(seqnum_a, seqnum_b, fps = 120, pca = FALSE,
+                                     print_feature_throughputs = FALSE) {
     pair_a_b <- new("residualComplexityEvaluator", seqnum_a = seqnum_a,
                     seqnum_b = seqnum_b, fps = fps, pca = pca)
     results_a_b <- evaluate_complexity(pair_a_b)
@@ -31,7 +32,15 @@ pair_residual_complexity <- function(seqnum_a, seqnum_b, fps = 120, pca = FALSE)
                     seqnum_b = seqnum_a, fps = fps, pca = pca)
     results_b_a <- evaluate_complexity(pair_b_a)
 
-    return(rbind(results_a_b, results_b_a, deparse.level = 0))
+    if (print_feature_throughputs) {
+        print("Feature throughputs:")
+        print(rbind(get_feature_throughputs(results_a_b),
+                    get_feature_throughputs(results_b_a),
+                    deparse.level = 0))
+    }
+
+    return(rbind(construct_result_vector(results_a_b),
+           construct_result_vector(results_b_a), deparse.level = 0))
 }
 
 # A class for performing the required residual complexity evaluations,
@@ -39,11 +48,16 @@ pair_residual_complexity <- function(seqnum_a, seqnum_b, fps = 120, pca = FALSE)
 setClass("residualComplexityEvaluator",
          representation(seqnum_a = "numeric", # numbers of the sequences
                         seqnum_b = "numeric",
-                        fps   = "numeric",
-                        pca   = "logical",  # perform/do not perform pca
-                        seq_a = "matrix",   # the loaded sequence a
-                        seq_b = "matrix"))  # the loaded sequence b
+                        fps     = "numeric",
+                        pca     = "logical",  # perform/do not perform pca
+                        seq_a   = "matrix",   # the loaded sequence a
+                        seq_b   = "matrix",   # the loaded sequence b
+                        results = "list"))    # results after evaluation is done
 
+# Evaluates complexity and returns a new residualComplexityEvaluator
+# with the 'results' field set to the result list returned by the
+# evaluation function. See construct_result_vector and get_feature_throughputs
+# for result formatting and throughput calculation.
 setGeneric("evaluate_complexity",
            function(this) standardGeneric("evaluate_complexity"))
 setMethod("evaluate_complexity", "residualComplexityEvaluator",
@@ -51,10 +65,11 @@ setMethod("evaluate_complexity", "residualComplexityEvaluator",
                this <- load_residuals(this)
                this <- remove_duplicates(this)
                if (this@pca) this <- do_pca(this)
-               results <- evaluate_residual_shared_information(this@seq_a, this@seq_b)
-               construct_result_vector(this, results)
+               this@results <- evaluate_residual_shared_information(this@seq_a, this@seq_b)
+               this
            })
 
+# Loads and aligns the residuals indicated by the two sequence numbers.
 setGeneric("load_residuals",
            function (this) standardGeneric("load_residuals"))
 setMethod("load_residuals", "residualComplexityEvaluator",
@@ -65,6 +80,7 @@ setMethod("load_residuals", "residualComplexityEvaluator",
               this
           })
 
+# Removes duplicates from the two loaded residual sequences.
 setGeneric("remove_duplicates",
            function(this) standardGeneric("remove_duplicates"))
 setMethod("remove_duplicates", "residualComplexityEvaluator",
@@ -75,6 +91,7 @@ setMethod("remove_duplicates", "residualComplexityEvaluator",
               this
           })
 
+# Performs PCA on the two loaded sequences.
 setGeneric("do_pca",
            function(this) standardGeneric("do_pca"))
 setMethod("do_pca", "residualComplexityEvaluator",
@@ -89,15 +106,33 @@ setMethod("do_pca", "residualComplexityEvaluator",
 # in bits, total sum of residuals, total conditional sum of
 # residuals and the residual quotient. (Vector length is 5.)
 setGeneric("construct_result_vector",
-           function(this, results) standardGeneric("construct_result_vector"))
+           function(this) standardGeneric("construct_result_vector"))
 setMethod("construct_result_vector", "residualComplexityEvaluator",
-          function(this, results) {
-              quotient <- results$RSS / results$RSS_conditional
-              throughput <- results$total_shared / nrow(this@seq_a) * this@fps / log(2.0)
-              shared_information_bits <- results$total_shared / log(2.0)
+          function(this) {
+              quotient <- this@results$RSS / this@results$RSS_conditional
+              throughput <- calculate_throughput(this, this@results$total_shared)
+              shared_information_bits <- this@results$total_shared / log(2.0)
 
-              c(throughput, shared_information_bits, results$RSS,
-                results$RSS_conditional, quotient)
+              c(throughput, shared_information_bits, this@results$RSS,
+                this@results$RSS_conditional, quotient)
+          })
+
+# Generates a vector of feature throughputs. Can only be
+# run after evaluation.
+setGeneric("get_feature_throughputs",
+           function(this) standardGeneric("get_feature_throughputs"))
+setMethod("get_feature_throughputs", "residualComplexityEvaluator",
+          function(this) {
+              shared <- this@results$feature_shared
+              unlist(lapply(shared, function(x) calculate_throughput(this, x)))
+          })
+
+# Given a shared information value, calculate throughput.
+setGeneric("calculate_throughput",
+           function(this, shared) standardGeneric("calculate_throughput"))
+setMethod("calculate_throughput", "residualComplexityEvaluator",
+          function(this, shared) {
+              shared / nrow(this@seq_a) * this@fps / log(2.0)
           })
 
 # Calculate residual complexity assuming that each sequence type is in
