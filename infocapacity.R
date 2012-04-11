@@ -9,12 +9,12 @@ residuals <- function(sequence) {
 
     frames <- nrow(observed_sequence)
     num_features <- ncol(observed_sequence)
-    residuals = matrix(nrow = frames, ncol = num_features)
+    resid = matrix(nrow = frames, ncol = num_features)
 
     for (i in 1:num_features)
-        residuals[, i] <- get_residuals_for_feature(i, sequence_predictors,
+        resid[, i] <- get_residuals_for_feature(i, sequence_predictors,
                                                     observed_sequence)
-    return(residuals)
+    return(resid)
 }
 
 # Calculates the residuals for a given feature in the regression

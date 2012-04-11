@@ -81,15 +81,8 @@ calculate_residuals <- function(sequence_num) {
 # - alignment   the alignment file, indicating frame duplications
 # - residuals   residuals for the original (non-aligned) sequence
 align_residuals <- function(alignment, residuals) {
-    frames <- nrow(sequence)
     # The first two frames (numbered 1 and 2) are cut out because
-    # there are no residuals for them.
+    # no residuals are calculated for those frames.
     alignment <- alignment[alignment > 2]  - 2
-
-    aligned <- matrix(0, nrow = length(alignment), ncol = ncol(residuals))
-    # Perform alignment according to the given alignment file.
-    for (line in 1:nrow(aligned))
-        aligned[line,] <- residuals[alignment[line],]
-
-    return(aligned)
+    return(residuals[alignment,])
 }
