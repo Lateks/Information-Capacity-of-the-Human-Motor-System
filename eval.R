@@ -7,7 +7,7 @@ library("methods")
 # in the readme file). Sequences with consecutive numbers are
 # assumed to be pairs (e.g. 1 and 2, 3 and 4 and so on).
 residual_complexity <- function(fps = 120, pca = FALSE) {
-    filenames <- dir("aligneddata", "^[[:digit:]]+_ali_[[:digit:]]+.txt$")
+    filenames <- dir("alignment", "^[[:digit:]]+_ali_[[:digit:]]+.txt$")
     sequences <- length(filenames)
     all_results <- matrix(nrow = sequences, ncol = 5,
         dimnames = list(1:sequences, c("TP", "shared", "RSS", "RSS_resid", "quotient")))
