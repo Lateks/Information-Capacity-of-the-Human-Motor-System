@@ -68,19 +68,6 @@ sum_squared_residuals <- function(seq_a, seq_b) {
     return(sum(residuals^2))
 }
 
-# Removes duplicated rows from both sequences a and b.
-#
-# Returns the altered sequences as a list with two elements.
-remove_duplicate_frames <- function(a, b) {
-    skip <- rowSums((a[2:nrow(a),]-a[1:(nrow(a)-1),])^2) == 0
-    skip <- c(FALSE, skip)
-
-    a <- a[!skip,]
-    b <- b[!skip,]
-
-    return(list(a, b))
-}
-
 # Performs PCA on data and returns a matrix of eigenvectors.
 # The number of eigenvectors is chosen so that 90% of variance
 # is covered.
