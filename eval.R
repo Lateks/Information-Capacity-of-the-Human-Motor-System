@@ -63,7 +63,6 @@ setGeneric("evaluate_complexity",
 setMethod("evaluate_complexity", "residualComplexityEvaluator",
            function(this) {
                this <- load_residuals(this)
-               this <- remove_duplicates(this)
                if (this@pca) this <- do_pca(this)
                this@results <- evaluate_residual_shared_information(this@seq_a, this@seq_b)
                this
@@ -75,17 +74,6 @@ setGeneric("load_residuals",
 setMethod("load_residuals", "residualComplexityEvaluator",
           function(this) {
               data <- load_aligned_residuals(this@seqnum_a, this@seqnum_b)
-              this@seq_a <- data[[1]]
-              this@seq_b <- data[[2]]
-              this
-          })
-
-# Removes duplicates from the two loaded residual sequences.
-setGeneric("remove_duplicates",
-           function(this) standardGeneric("remove_duplicates"))
-setMethod("remove_duplicates", "residualComplexityEvaluator",
-          function(this) {
-              data <- remove_duplicate_frames(this@seq_a, this@seq_b)
               this@seq_a <- data[[1]]
               this@seq_b <- data[[2]]
               this

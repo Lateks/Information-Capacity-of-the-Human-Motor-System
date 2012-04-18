@@ -15,6 +15,10 @@ load_aligned_residuals <- function(seqnum1, seqnum2) {
     ali_a <- load_aligned(seqnum1, seqnum2, data = FALSE)
     ali_b <- load_aligned(seqnum2, seqnum1, data = FALSE)
 
+    new_alis <- remove_duplicate_frames(ali_a, ali_b)
+    ali_a <- new_alis[[1]]
+    ali_b <- new_alis[[2]]
+
     residuals_a <- get_aligned_residuals(seqnum1, ali_a)
     residuals_b <- get_aligned_residuals(seqnum2, ali_b)
 
@@ -23,6 +27,15 @@ load_aligned_residuals <- function(seqnum1, seqnum2) {
     residuals_b <- residuals[[2]]
 
     return(list(residuals_a, residuals_b))
+}
+
+# Removes duplicated rows from alignment index sequences a and b.
+#
+# Returns the altered sequences as a list with two elements.
+remove_duplicate_frames <- function(a, b) {
+    skip <- c(FALSE, a[2:nrow(a),]-a[1:(nrow(a)-1),] == 0)
+
+    return(list(a[!skip,], b[!skip,]))
 }
 
 # Loads the aligned data file "seqnum1_ali_seqnum2.txt" or the corresponding
